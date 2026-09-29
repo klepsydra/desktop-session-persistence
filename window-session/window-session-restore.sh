@@ -45,10 +45,34 @@ def current_windows():
         wins.append({'id': win_id, 'class': wm_class, 'desktop': int(desktop)})
     return wins
 
+def gnome_terminal_tabs_cmd():
+    # Best-effort: reopen every tab gterm-tabs-save.sh last saw, at its last
+    # working directory, consolidated into one window (which tab belonged to
+    # which of possibly several windows isn't recoverable - see that script).
+    path = os.path.expanduser('~/.local/share/window-session/gterm-tabs.json')
+    try:
+        with open(path) as f:
+            tabs = json.load(f).get('tabs', [])
+    except (OSError, json.JSONDecodeError):
+        return None
+    cwds = [t['cwd'] for t in tabs if t.get('cwd') and os.path.isdir(t['cwd'])]
+    if not cwds:
+        return None
+    cmd = ['gnome-terminal']
+    for cwd in cwds:
+        cmd += ['--tab', '--working-directory', cwd]
+    return cmd
+
+_gterm_tabs_consumed = False
+
 def launch_cmd_for(win):
+    global _gterm_tabs_consumed
     cls = win['class']
     cmdline = win.get('cmdline')
     if cls.startswith('gnome-terminal-server'):
+        if not _gterm_tabs_consumed:
+            _gterm_tabs_consumed = True
+            return gnome_terminal_tabs_cmd() or ['gnome-terminal']
         return ['gnome-terminal']
     if not cmdline:
         return None

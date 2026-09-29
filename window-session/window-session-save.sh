@@ -71,3 +71,7 @@ HIST_DIR="$HOME/.local/share/window-session/history"
 mkdir -p "$HIST_DIR"
 cp "$OUT" "$HIST_DIR/windows_$(date +%Y%m%dT%H%M%S).json"
 ls -t "$HIST_DIR"/windows_*.json 2>/dev/null | tail -n +21 | xargs -r rm --
+
+# Best-effort gnome-terminal tab/cwd capture (separate script - see there
+# for what it can/can't recover).
+"$HOME/.local/bin/gterm-tabs-save.sh" || true

@@ -18,6 +18,7 @@ tmux/
 window-session/
   window-session-save.sh    -> ~/.local/bin/window-session-save.sh
   window-session-restore.sh -> ~/.local/bin/window-session-restore.sh
+  gterm-tabs-save.sh        -> ~/.local/bin/gterm-tabs-save.sh
   session-browser.sh        -> ~/.local/bin/session-browser.sh
 systemd/user/*               -> ~/.config/systemd/user/
 autostart/*.desktop          -> ~/.config/autostart/
@@ -62,13 +63,30 @@ install.sh                   symlinks everything above into place
   polls for the new window, then repositions/moves it to its saved
   workspace with `wmctrl`.
 
-### Known limits (not bugs)
+### gnome-terminal tabs (best-effort, separate from tmux)
 
-- A restored **gnome-terminal** window lands in the right spot but comes
-  back *empty* — the shell/cwd/tab state inside a terminal window isn't
-  something `wmctrl`/relaunch can recover. That's what the tmux track
-  above is for: keep real terminal work inside tmux/byobu panes and you
-  get both position *and* content back.
+gnome-terminal has no session-save of its own (same dead-XSMP story as
+Cinnamon), and its tabs are invisible to `wmctrl` — they're widgets
+inside one shared `gnome-terminal-server` process, not separate X11
+windows. `gterm-tabs-save.sh` (run as part of `window-session-save.sh`,
+so on the same 10-min timer + logout hook) works around this by walking
+`/proc` for every live shell directly attached to that process and
+recording its tty + current working directory to
+`~/.local/share/window-session/gterm-tabs.json`. On restore,
+`window-session-restore.sh` uses that file to reopen the same number of
+tabs at their last directories (`gnome-terminal --working-directory=X
+--tab --working-directory=Y ...`), instead of a single blank tab.
+
+Real limits of this, unlike the tmux track:
+- Only **cwd** is recovered — no scrollback, no whatever command/foreground
+  program was actually running in the tab.
+- If you had **multiple gnome-terminal windows**, which tabs belonged to
+  which window can't be recovered (they're all children of the same
+  server process with no distinguishing window info) — every recovered
+  tab lands consolidated into one new window.
+- If you want real content/scrollback continuity, that's what the tmux
+  track is for: keep the work inside a byobu/tmux pane instead of a bare
+  gnome-terminal tab and you get both position *and* content back.
 - `wmctrl -e` positions relative to the window-manager frame, not the
   outer decorated frame, so restored windows land close to but not
   pixel-identical to their saved spot.
