@@ -1,13 +1,59 @@
 #!/bin/bash
-# Interactive fzf browser over everything the session-persistence setup saves:
-# tmux/byobu layout snapshots, window-position snapshots, and per-pane
-# scrollback logs.
+# Interactive fzf browser + manager over everything the session-persistence
+# setup saves: tmux/byobu layout snapshots, window-position snapshots, and
+# per-pane scrollback logs.
+#
+# Keys inside each list:
+#   enter   restore this snapshot (tmux/windows) or view it (logs)
+#   ctrl-s  save a new snapshot right now
+#   ctrl-x  delete the selected snapshot
+#   esc     back / quit
 set -uo pipefail
 export SHELL=bash
 
 RESURRECT_DIR="$HOME/.local/share/tmux/resurrect"
+RESURRECT_RESTORE="$HOME/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
+RESURRECT_SAVE="$HOME/.tmux/plugins/tmux-resurrect/scripts/save.sh"
+WINSESS_LATEST="$HOME/.local/share/window-session/windows.json"
 WINSESS_HIST="$HOME/.local/share/window-session/history"
+WINSESS_RESTORE="$HOME/.local/bin/window-session-restore.sh"
+WINSESS_SAVE="$HOME/.local/bin/window-session-save.sh"
 TMUX_LOGS="$HOME/.tmux/logs"
+
+export RESURRECT_DIR RESURRECT_RESTORE RESURRECT_SAVE
+export WINSESS_LATEST WINSESS_HIST WINSESS_RESTORE WINSESS_SAVE TMUX_LOGS
+
+human_ts() {  # 20260929T083525 -> 2026-09-29 08:35:25 (3 hours ago)
+  local raw="$1"
+  local iso="${raw:0:4}-${raw:4:2}-${raw:6:2} ${raw:9:2}:${raw:11:2}:${raw:13:2}"
+  local ago
+  ago=$(date -d "$iso" '+%s' 2>/dev/null)
+  if [ -n "$ago" ]; then
+    local now=$(date '+%s')
+    local diff=$(( now - ago ))
+    local rel
+    if   [ "$diff" -lt 60 ];    then rel="${diff}s ago"
+    elif [ "$diff" -lt 3600 ];  then rel="$((diff/60))m ago"
+    elif [ "$diff" -lt 86400 ]; then rel="$((diff/3600))h ago"
+    else                             rel="$((diff/86400))d ago"
+    fi
+    echo "$iso ($rel)"
+  else
+    echo "$iso"
+  fi
+}
+export -f human_ts
+
+confirm() {
+  read -r -p "$1 [y/N] " ans
+  [[ "$ans" =~ ^[Yy]$ ]]
+}
+export -f confirm
+
+pause() { read -r -p "press enter to continue..." _; }
+export -f pause
+
+# ---------- tmux / byobu layout snapshots ----------
 
 fmt_resurrect() {
   python3 - "$1" <<'PYEOF'
@@ -36,6 +82,64 @@ PYEOF
 }
 export -f fmt_resurrect
 
+list_resurrect() {
+  local files last_target
+  files=$(ls -t "$RESURRECT_DIR"/tmux_resurrect_*.txt 2>/dev/null)
+  [ -n "$files" ] || return
+  last_target=$(readlink -f "$RESURRECT_DIR/last" 2>/dev/null || true)
+  echo "$files" | while read -r f; do
+    ts=$(basename "$f" | sed 's/tmux_resurrect_//; s/\.txt//')
+    mark=" "
+    [ "$f" = "$last_target" ] && mark="*"
+    printf '%s %s\t%s\n' "$mark" "$(human_ts "$ts")" "$f"
+  done
+}
+export -f list_resurrect
+
+restore_resurrect() {
+  local f="$1"
+  [ -n "$f" ] || return
+  echo "Restore tmux/byobu layout from: $(basename "$f")"
+  echo "Creates any sessions/windows from that snapshot that aren't already"
+  echo "running now. Sessions that already exist are left untouched."
+  confirm "Proceed?" || { echo cancelled; sleep 1; return; }
+  ln -sfn "$f" "$RESURRECT_DIR/last"
+  bash "$RESURRECT_RESTORE"
+  pause
+}
+export -f restore_resurrect
+
+delete_resurrect() {
+  local f="$1"
+  [ -n "$f" ] || return
+  confirm "Delete snapshot $(basename "$f")?" || { echo cancelled; sleep 1; return; }
+  if [ "$(readlink -f "$RESURRECT_DIR/last" 2>/dev/null)" = "$(readlink -f "$f")" ]; then
+    echo "(that was the 'last' snapshot; clearing the pointer)"
+    rm -f "$RESURRECT_DIR/last"
+  fi
+  rm -f "$f"
+  sleep 1
+}
+export -f delete_resurrect
+
+save_resurrect_now() { bash "$RESURRECT_SAVE" quiet; }
+export -f save_resurrect_now
+
+browse_resurrect() {
+  if [ ! -d "$RESURRECT_DIR" ] || [ -z "$(list_resurrect)" ]; then
+    echo "no tmux-resurrect snapshots yet"; sleep 1; return
+  fi
+  list_resurrect | fzf --delimiter='\t' --with-nth=1 \
+    --header 'tmux/byobu snapshots | enter:restore ctrl-s:save-now ctrl-x:delete esc:back  (* = "last")' \
+    --preview 'fmt_resurrect {2}' --preview-window=right:65% \
+    --bind 'enter:execute(restore_resurrect {2})+reload(list_resurrect)' \
+    --bind 'ctrl-s:execute-silent(save_resurrect_now)+reload(list_resurrect)' \
+    --bind 'ctrl-x:execute(delete_resurrect {2})+reload(list_resurrect)' \
+    > /dev/null
+}
+
+# ---------- window-position snapshots ----------
+
 fmt_window_snapshot() {
   python3 - "$1" <<'PYEOF'
 import json, sys
@@ -48,65 +152,97 @@ PYEOF
 }
 export -f fmt_window_snapshot
 
-browse_resurrect() {
-  [ -d "$RESURRECT_DIR" ] || { echo "no tmux-resurrect snapshots yet"; return; }
-  local files
-  files=$(ls -t "$RESURRECT_DIR"/tmux_resurrect_*.txt 2>/dev/null)
-  [ -n "$files" ] || { echo "no tmux-resurrect snapshots yet"; return; }
-
-  local last_target
-  last_target=$(readlink -f "$RESURRECT_DIR/last" 2>/dev/null || true)
-
-  echo "$files" | while read -r f; do
-    ts=$(basename "$f" | sed 's/tmux_resurrect_//; s/\.txt//')
-    mark=" "
-    [ "$f" = "$last_target" ] && mark="*"
-    printf '%s %s\t%s\n' "$mark" "$ts" "$f"
-  done | fzf --delimiter='\t' --with-nth=1 \
-    --header 'tmux/byobu layout snapshots  (* = "last", used on next tmux restore)' \
-    --preview 'fmt_resurrect {2}' \
-    --preview-window=right:65%
-}
-
-browse_windows() {
-  [ -d "$WINSESS_HIST" ] || { echo "no window-position snapshots yet"; return; }
+list_windows() {
   local files
   files=$(ls -t "$WINSESS_HIST"/windows_*.json 2>/dev/null)
-  [ -n "$files" ] || { echo "no window-position snapshots yet"; return; }
-
+  [ -n "$files" ] || return
   echo "$files" | while read -r f; do
     ts=$(basename "$f" | sed 's/windows_//; s/\.json//')
     n=$(python3 -c "import json;print(len(json.load(open('$f'))['windows']))" 2>/dev/null || echo '?')
-    printf '%s (%s windows)\t%s\n' "$ts" "$n" "$f"
-  done | fzf --delimiter='\t' --with-nth=1 \
-    --header 'window-position snapshots' \
-    --preview 'fmt_window_snapshot {2}' \
-    --preview-window=right:65%
+    printf '%s  (%s windows)\t%s\n' "$(human_ts "$ts")" "$n" "$f"
+  done
+}
+export -f list_windows
+
+restore_windows() {
+  local f="$1"
+  [ -n "$f" ] || return
+  echo "Restore window positions from: $(basename "$f")"
+  echo "Relaunches any app whose window class isn't already open at least as"
+  echo "many times as was saved, then moves it to its saved spot. Windows"
+  echo "already open are left alone."
+  confirm "Proceed?" || { echo cancelled; sleep 1; return; }
+  cp "$f" "$WINSESS_LATEST"
+  bash "$WINSESS_RESTORE"
+  pause
+}
+export -f restore_windows
+
+delete_windows() {
+  local f="$1"
+  [ -n "$f" ] || return
+  confirm "Delete snapshot $(basename "$f")?" || { echo cancelled; sleep 1; return; }
+  rm -f "$f"
+  sleep 1
+}
+export -f delete_windows
+
+save_windows_now() { bash "$WINSESS_SAVE"; }
+export -f save_windows_now
+
+browse_windows() {
+  if [ ! -d "$WINSESS_HIST" ] || [ -z "$(list_windows)" ]; then
+    echo "no window-position snapshots yet"; sleep 1; return
+  fi
+  list_windows | fzf --delimiter='\t' --with-nth=1 \
+    --header 'window-position snapshots | enter:restore ctrl-s:save-now ctrl-x:delete esc:back' \
+    --preview 'fmt_window_snapshot {2}' --preview-window=right:65% \
+    --bind 'enter:execute(restore_windows {2})+reload(list_windows)' \
+    --bind 'ctrl-s:execute-silent(save_windows_now)+reload(list_windows)' \
+    --bind 'ctrl-x:execute(delete_windows {2})+reload(list_windows)' \
+    > /dev/null
 }
 
-browse_logs() {
-  [ -d "$TMUX_LOGS" ] || { echo "no scrollback logs yet"; return; }
+# ---------- scrollback logs ----------
+
+list_logs() {
   local files
   files=$(ls -t "$TMUX_LOGS"/*.log 2>/dev/null)
-  [ -n "$files" ] || { echo "no scrollback logs yet"; return; }
-
-  local pick
-  pick=$(echo "$files" | while read -r f; do
+  [ -n "$files" ] || return
+  echo "$files" | while read -r f; do
     sz=$(du -h "$f" | cut -f1)
-    mt=$(date -r "$f" '+%Y-%m-%d %H:%M')
-    printf '%s  (%s, updated %s)\t%s\n' "$(basename "$f")" "$sz" "$mt" "$f"
-  done | fzf --delimiter='\t' --with-nth=1 \
-    --header 'scrollback logs (enter to open full log in less)' \
-    --preview 'tail -c 4000 {2} | cat -v' \
-    --preview-window=right:65%)
-
-  [ -n "$pick" ] || return
-  less -R "$(echo "$pick" | cut -f2)"
+    mt=$(date -r "$f" '+%Y-%m-%d %H:%M:%S')
+    printf '%s  %s  (%s)\t%s\n' "$(basename "$f")" "$mt" "$sz" "$f"
+  done
 }
+export -f list_logs
+
+delete_log() {
+  local f="$1"
+  [ -n "$f" ] || return
+  confirm "Delete log $(basename "$f")?" || { echo cancelled; sleep 1; return; }
+  rm -f "$f"
+  sleep 1
+}
+export -f delete_log
+
+browse_logs() {
+  if [ ! -d "$TMUX_LOGS" ] || [ -z "$(list_logs)" ]; then
+    echo "no scrollback logs yet"; sleep 1; return
+  fi
+  list_logs | fzf --delimiter='\t' --with-nth=1 \
+    --header 'scrollback logs | enter:view (less) ctrl-x:delete esc:back' \
+    --preview 'tail -c 4000 {2} | cat -v' --preview-window=right:65% \
+    --bind 'enter:execute(less -R {2})' \
+    --bind 'ctrl-x:execute(delete_log {2})+reload(list_logs)' \
+    > /dev/null
+}
+
+# ---------- top level ----------
 
 main_menu() {
   printf 'tmux/byobu layout snapshots\nwindow-position snapshots\nscrollback logs\n' \
-    | fzf --header 'view saved sessions - pick a category (esc to quit)'
+    | fzf --header 'view/manage saved sessions - pick a category (esc to quit)'
 }
 
 case "${1:-}" in
@@ -114,11 +250,14 @@ case "${1:-}" in
   windows) browse_windows ;;
   logs) browse_logs ;;
   *)
-    choice=$(main_menu)
-    case "$choice" in
-      "tmux/byobu layout snapshots") browse_resurrect ;;
-      "window-position snapshots") browse_windows ;;
-      "scrollback logs") browse_logs ;;
-    esac
+    while true; do
+      choice=$(main_menu)
+      case "$choice" in
+        "tmux/byobu layout snapshots") browse_resurrect ;;
+        "window-position snapshots") browse_windows ;;
+        "scrollback logs") browse_logs ;;
+        *) break ;;
+      esac
+    done
     ;;
 esac

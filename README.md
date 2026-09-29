@@ -76,19 +76,38 @@ install.sh                   symlinks everything above into place
   state). That needs a real on-disk swapfile sized to RAM, a `resume=`
   kernel parameter, and a GRUB/initramfs update — out of scope here.
 
-## Viewing what's saved
+## Viewing and managing what's saved
 
-`session-browser.sh` is a small fzf-based TUI over everything above:
+`session-browser.sh` is a small fzf-based TUI over everything above —
+list, restore, delete, or save-now, all from one place:
 
 ```bash
 session-browser.sh          # menu: pick a category
-session-browser.sh tmux     # tmux/byobu layout snapshots, with a preview of
-                             # each snapshot's sessions/windows/panes/cwd/cmd
-session-browser.sh windows  # window-position snapshots, previewing each
-                             # window's class/geometry/workspace/title
-session-browser.sh logs     # scrollback logs, preview the tail, Enter opens
-                             # the full log in `less -R`
+session-browser.sh tmux     # tmux/byobu layout snapshots
+session-browser.sh windows  # window-position snapshots
+session-browser.sh logs     # scrollback logs
 ```
+
+Every list shows a clear, human-readable timestamp plus relative age (e.g.
+`2026-09-29 08:35:25 (6m ago)`), and a live preview of that snapshot's
+contents (sessions/windows/panes + cwd/cmd for tmux; class/geometry/
+workspace/title for windows; tail of the file for logs).
+
+Keys inside a list:
+
+| key      | tmux snapshots         | window snapshots       | logs              |
+|----------|------------------------|------------------------|-------------------|
+| `enter`  | restore this snapshot  | restore this snapshot  | view in `less -R` |
+| `ctrl-s` | save a new snapshot now| save a new snapshot now| —                 |
+| `ctrl-x` | delete this snapshot   | delete this snapshot   | delete this log   |
+| `esc`    | back                   | back                   | back              |
+
+"Restore" is non-destructive by construction: it only creates sessions/
+windows/app instances that *aren't already running*; anything already
+open is left alone (this mirrors tmux-resurrect's own restore semantics,
+and `window-session-restore.sh` was written the same way from the start).
+Restoring an older tmux snapshot also repoints resurrect's `last` pointer
+(marked with `*` in the list) to that snapshot.
 
 Needs `fzf` (`sudo apt install fzf`). `window-session-save.sh` now also
 keeps a rotating history of its last 20 snapshots in
