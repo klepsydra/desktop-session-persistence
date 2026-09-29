@@ -18,6 +18,7 @@ tmux/
 window-session/
   window-session-save.sh    -> ~/.local/bin/window-session-save.sh
   window-session-restore.sh -> ~/.local/bin/window-session-restore.sh
+  session-browser.sh        -> ~/.local/bin/session-browser.sh
 systemd/user/*               -> ~/.config/systemd/user/
 autostart/*.desktop          -> ~/.config/autostart/
 install.sh                   symlinks everything above into place
@@ -74,6 +75,26 @@ install.sh                   symlinks everything above into place
 - This does not implement real hibernate-to-disk (freezing exact RAM
   state). That needs a real on-disk swapfile sized to RAM, a `resume=`
   kernel parameter, and a GRUB/initramfs update — out of scope here.
+
+## Viewing what's saved
+
+`session-browser.sh` is a small fzf-based TUI over everything above:
+
+```bash
+session-browser.sh          # menu: pick a category
+session-browser.sh tmux     # tmux/byobu layout snapshots, with a preview of
+                             # each snapshot's sessions/windows/panes/cwd/cmd
+session-browser.sh windows  # window-position snapshots, previewing each
+                             # window's class/geometry/workspace/title
+session-browser.sh logs     # scrollback logs, preview the tail, Enter opens
+                             # the full log in `less -R`
+```
+
+Needs `fzf` (`sudo apt install fzf`). `window-session-save.sh` now also
+keeps a rotating history of its last 20 snapshots in
+`~/.local/share/window-session/history/` so there's something to browse
+(the "latest" `windows.json` used by `window-session-restore.sh` is
+unaffected).
 
 ## Install on a fresh machine
 

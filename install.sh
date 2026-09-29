@@ -21,7 +21,8 @@ link tmux/scripts/replay-logs.sh .tmux/scripts/replay-logs.sh
 
 link window-session/window-session-save.sh .local/bin/window-session-save.sh
 link window-session/window-session-restore.sh .local/bin/window-session-restore.sh
-chmod +x "$HOME/.local/bin/window-session-save.sh" "$HOME/.local/bin/window-session-restore.sh"
+link window-session/session-browser.sh .local/bin/session-browser.sh
+chmod +x "$HOME/.local/bin/window-session-save.sh" "$HOME/.local/bin/window-session-restore.sh" "$HOME/.local/bin/session-browser.sh"
 chmod +x "$HOME/.tmux/scripts/replay-logs.sh"
 
 link systemd/user/tmux-resurrect-save.service .config/systemd/user/tmux-resurrect-save.service

@@ -65,3 +65,9 @@ with open(out_path, 'w') as f:
 PYEOF
 
 mv "$TMP" "$OUT"
+
+# Keep a rotating history of snapshots (last 20) so they're browsable later.
+HIST_DIR="$HOME/.local/share/window-session/history"
+mkdir -p "$HIST_DIR"
+cp "$OUT" "$HIST_DIR/windows_$(date +%Y%m%dT%H%M%S).json"
+ls -t "$HIST_DIR"/windows_*.json 2>/dev/null | tail -n +21 | xargs -r rm --
