@@ -1,0 +1,92 @@
+# desktop-session-persistence
+
+Save/restore for a Linux Mint Cinnamon (X11, LightDM) desktop: tmux/byobu
+session layout + real terminal scrollback, and open-window positions —
+across logout, crash, or reboot.
+
+Built because Cinnamon's built-in XSMP "auto-save-session" looks like it
+works (the checkbox is on) but doesn't: most modern apps stopped
+implementing that protocol, so nothing actually gets saved through it.
+
+## What's here
+
+```
+tmux/
+  tmux.conf                 -> ~/.tmux.conf
+  byobu-include.tmux.conf    -> ~/.config/byobu/.tmux.conf
+  scripts/replay-logs.sh    -> ~/.tmux/scripts/replay-logs.sh
+window-session/
+  window-session-save.sh    -> ~/.local/bin/window-session-save.sh
+  window-session-restore.sh -> ~/.local/bin/window-session-restore.sh
+systemd/user/*               -> ~/.config/systemd/user/
+autostart/*.desktop          -> ~/.config/autostart/
+install.sh                   symlinks everything above into place
+```
+
+## Tmux / byobu: layout + real scrollback persistence
+
+- `tmux-resurrect` + `tmux-continuum` (installed separately via
+  [TPM](https://github.com/tmux-plugins/tpm)) save pane layout, working
+  directories, and running commands, and auto-restore them the first time a
+  tmux server starts after a reboot.
+- Periodic autosave runs via a systemd user timer
+  (`tmux-resurrect-save.timer`, every 15 min) rather than continuum's own
+  status-bar polling trick — that trick silently disables itself whenever
+  it detects more than one tmux-related process running (true in any setup
+  that mixes byobu with a second plain `tmux` client, e.g. a second
+  terminal multiplexer or an editor/agent that also drives tmux).
+- **Real scrollback persistence**: tmux's live scrollback buffer is
+  memory-only and can't survive a reboot, full stop. What actually
+  survives: `tmux.conf`'s hooks pipe every pane's raw output continuously
+  to `~/.tmux/logs/<session>_<window>-<pane>.log` for as long as the pane
+  lives. After a resurrect restore, `replay-logs.sh` tails the last 51000
+  lines of each pane's log back into the newly-relaunched (otherwise
+  empty) pane, so recent history is visually there again. The full
+  transcript is always on disk in `~/.tmux/logs/` regardless, searchable
+  with `grep`/`less` (contains raw ANSI escapes from the original output).
+
+## Window position save/restore
+
+- `window-session-save.sh` snapshots open app windows (class, geometry,
+  workspace, and a relaunch command read from `/proc/<pid>/cmdline`) to
+  `~/.local/share/window-session/windows.json`, skipping desktop chrome
+  (panels, cairo-dock, nemo-desktop, ...). Runs every 10 min via
+  `window-session-save.timer`, plus once more on logout/shutdown via
+  `window-session-sentinel.service`'s `ExecStop` (a `PartOf=
+  graphical-session.target` sentinel unit — the standard systemd pattern
+  for "run something when the graphical session ends").
+- `window-session-restore.sh` runs at login (`autostart/*.desktop`, after
+  an 8s settle delay). For each saved window class with fewer windows
+  currently open than were saved, it relaunches the recorded command,
+  polls for the new window, then repositions/moves it to its saved
+  workspace with `wmctrl`.
+
+### Known limits (not bugs)
+
+- A restored **gnome-terminal** window lands in the right spot but comes
+  back *empty* — the shell/cwd/tab state inside a terminal window isn't
+  something `wmctrl`/relaunch can recover. That's what the tmux track
+  above is for: keep real terminal work inside tmux/byobu panes and you
+  get both position *and* content back.
+- `wmctrl -e` positions relative to the window-manager frame, not the
+  outer decorated frame, so restored windows land close to but not
+  pixel-identical to their saved spot.
+- This does not implement real hibernate-to-disk (freezing exact RAM
+  state). That needs a real on-disk swapfile sized to RAM, a `resume=`
+  kernel parameter, and a GRUB/initramfs update — out of scope here.
+
+## Install on a fresh machine
+
+```bash
+git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+./install.sh
+~/.tmux/plugins/tpm/bin/install_plugins
+systemctl --user daemon-reload
+systemctl --user enable --now tmux-resurrect-save.timer
+systemctl --user enable --now window-session-save.timer
+systemctl --user enable --now window-session-sentinel.service
+```
+
+`install.sh` only symlinks; it doesn't enable the systemd units or install
+TPM's plugins for you, since those are one-time/idempotent steps you may
+want to review first.

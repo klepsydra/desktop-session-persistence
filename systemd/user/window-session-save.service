@@ -1,0 +1,7 @@
+[Unit]
+Description=Save open window positions/classes for restore on next login
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/window-session-save.sh

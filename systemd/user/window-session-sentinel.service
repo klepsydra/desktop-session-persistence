@@ -1,0 +1,13 @@
+[Unit]
+Description=Sentinel: save window session on logout/shutdown
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=%h/.local/bin/window-session-save.sh
+
+[Install]
+WantedBy=graphical-session.target
