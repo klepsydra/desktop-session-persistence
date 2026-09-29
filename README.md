@@ -98,14 +98,17 @@ Keys inside a list:
 | key      | tmux snapshots         | window snapshots       | logs              |
 |----------|------------------------|------------------------|-------------------|
 | `enter`  | restore this snapshot  | restore this snapshot  | view in `less -R` |
-| `alt-s`  | save a new snapshot now| save a new snapshot now| —                 |
+| `f5`     | save a new snapshot now| save a new snapshot now| —                 |
 | `ctrl-x` | delete this snapshot   | delete this snapshot   | delete this log   |
 | `esc`    | back                   | back                   | back              |
 
-(`ctrl-s`/`ctrl-q` aren't used for anything — they're terminal flow
+`ctrl-s`/`ctrl-q` aren't used for anything — they're terminal flow
 control (XOFF/XON), swallowed by the tty driver before fzf, or any other
-app, ever sees them. If a terminal ever looks "frozen" after a stray
-ctrl-s, that's what happened; ctrl-q un-freezes it.)
+app, ever sees them (a stray `ctrl-s` can even "freeze" a terminal until
+`ctrl-q` is pressed). `alt-<letter>` isn't used either — gnome-terminal
+(and most GTK apps) grab bare Alt+letter for menu mnemonics before the
+keystroke ever reaches the program running inside it; `alt-s` in
+particular opens gnome-terminal's own Search menu. `f5` sidesteps both.
 
 "Restore" is non-destructive by construction: it only creates sessions/
 windows/app instances that *aren't already running*; anything already

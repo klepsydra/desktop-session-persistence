@@ -5,13 +5,14 @@
 #
 # Keys inside each list:
 #   enter   restore this snapshot (tmux/windows) or view it (logs)
-#   alt-s   save a new snapshot right now
+#   f5      save a new snapshot right now
 #   ctrl-x  delete the selected snapshot
 #   esc     back / quit
 #
 # (ctrl-s/ctrl-q are terminal XOFF/XON flow control, swallowed by the tty
 # driver itself before any application - including fzf - ever sees them;
-# that's why "save now" is alt-s instead.)
+# and Alt+letter is grabbed by gnome-terminal (and most GTK apps) for menu
+# mnemonics - here Alt+S opens the Search menu. F5 avoids both.)
 set -uo pipefail
 export SHELL=bash
 
@@ -119,10 +120,10 @@ browse_resurrect() {
     echo "no tmux-resurrect snapshots yet"; sleep 1; return
   fi
   list_resurrect | fzf --delimiter='\t' --with-nth=1 \
-    --header 'tmux/byobu snapshots | enter:restore alt-s:save-now ctrl-x:delete esc:back  (* = "last")' \
+    --header 'tmux/byobu snapshots | enter:restore f5:save-now ctrl-x:delete esc:back  (* = "last")' \
     --preview 'fmt_resurrect {2}' --preview-window=right:65% \
     --bind 'enter:execute(restore_resurrect {2})+reload(list_resurrect)' \
-    --bind 'alt-s:execute-silent(save_resurrect_now)+reload(list_resurrect)' \
+    --bind 'f5:execute-silent(save_resurrect_now)+reload(list_resurrect)' \
     --bind 'ctrl-x:execute(delete_resurrect {2})+reload(list_resurrect)' \
     > /dev/null
 }
@@ -184,10 +185,10 @@ browse_windows() {
     echo "no window-position snapshots yet"; sleep 1; return
   fi
   list_windows | fzf --delimiter='\t' --with-nth=1 \
-    --header 'window-position snapshots | enter:restore alt-s:save-now ctrl-x:delete esc:back' \
+    --header 'window-position snapshots | enter:restore f5:save-now ctrl-x:delete esc:back' \
     --preview 'fmt_window_snapshot {2}' --preview-window=right:65% \
     --bind 'enter:execute(restore_windows {2})+reload(list_windows)' \
-    --bind 'alt-s:execute-silent(save_windows_now)+reload(list_windows)' \
+    --bind 'f5:execute-silent(save_windows_now)+reload(list_windows)' \
     --bind 'ctrl-x:execute(delete_windows {2})+reload(list_windows)' \
     > /dev/null
 }
