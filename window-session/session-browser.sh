@@ -5,9 +5,13 @@
 #
 # Keys inside each list:
 #   enter   restore this snapshot (tmux/windows) or view it (logs)
-#   ctrl-s  save a new snapshot right now
+#   alt-s   save a new snapshot right now
 #   ctrl-x  delete the selected snapshot
 #   esc     back / quit
+#
+# (ctrl-s/ctrl-q are terminal XOFF/XON flow control, swallowed by the tty
+# driver itself before any application - including fzf - ever sees them;
+# that's why "save now" is alt-s instead.)
 set -uo pipefail
 export SHELL=bash
 
@@ -23,24 +27,9 @@ TMUX_LOGS="$HOME/.tmux/logs"
 export RESURRECT_DIR RESURRECT_RESTORE RESURRECT_SAVE
 export WINSESS_LATEST WINSESS_HIST WINSESS_RESTORE WINSESS_SAVE TMUX_LOGS
 
-human_ts() {  # 20260929T083525 -> 2026-09-29 08:35:25 (3 hours ago)
+human_ts() {  # 20260929T083525 -> 2026-09-29 08:35:25
   local raw="$1"
-  local iso="${raw:0:4}-${raw:4:2}-${raw:6:2} ${raw:9:2}:${raw:11:2}:${raw:13:2}"
-  local ago
-  ago=$(date -d "$iso" '+%s' 2>/dev/null)
-  if [ -n "$ago" ]; then
-    local now=$(date '+%s')
-    local diff=$(( now - ago ))
-    local rel
-    if   [ "$diff" -lt 60 ];    then rel="${diff}s ago"
-    elif [ "$diff" -lt 3600 ];  then rel="$((diff/60))m ago"
-    elif [ "$diff" -lt 86400 ]; then rel="$((diff/3600))h ago"
-    else                             rel="$((diff/86400))d ago"
-    fi
-    echo "$iso ($rel)"
-  else
-    echo "$iso"
-  fi
+  echo "${raw:0:4}-${raw:4:2}-${raw:6:2} ${raw:9:2}:${raw:11:2}:${raw:13:2}"
 }
 export -f human_ts
 
@@ -130,10 +119,10 @@ browse_resurrect() {
     echo "no tmux-resurrect snapshots yet"; sleep 1; return
   fi
   list_resurrect | fzf --delimiter='\t' --with-nth=1 \
-    --header 'tmux/byobu snapshots | enter:restore ctrl-s:save-now ctrl-x:delete esc:back  (* = "last")' \
+    --header 'tmux/byobu snapshots | enter:restore alt-s:save-now ctrl-x:delete esc:back  (* = "last")' \
     --preview 'fmt_resurrect {2}' --preview-window=right:65% \
     --bind 'enter:execute(restore_resurrect {2})+reload(list_resurrect)' \
-    --bind 'ctrl-s:execute-silent(save_resurrect_now)+reload(list_resurrect)' \
+    --bind 'alt-s:execute-silent(save_resurrect_now)+reload(list_resurrect)' \
     --bind 'ctrl-x:execute(delete_resurrect {2})+reload(list_resurrect)' \
     > /dev/null
 }
@@ -195,10 +184,10 @@ browse_windows() {
     echo "no window-position snapshots yet"; sleep 1; return
   fi
   list_windows | fzf --delimiter='\t' --with-nth=1 \
-    --header 'window-position snapshots | enter:restore ctrl-s:save-now ctrl-x:delete esc:back' \
+    --header 'window-position snapshots | enter:restore alt-s:save-now ctrl-x:delete esc:back' \
     --preview 'fmt_window_snapshot {2}' --preview-window=right:65% \
     --bind 'enter:execute(restore_windows {2})+reload(list_windows)' \
-    --bind 'ctrl-s:execute-silent(save_windows_now)+reload(list_windows)' \
+    --bind 'alt-s:execute-silent(save_windows_now)+reload(list_windows)' \
     --bind 'ctrl-x:execute(delete_windows {2})+reload(list_windows)' \
     > /dev/null
 }

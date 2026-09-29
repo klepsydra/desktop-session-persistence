@@ -88,19 +88,24 @@ session-browser.sh windows  # window-position snapshots
 session-browser.sh logs     # scrollback logs
 ```
 
-Every list shows a clear, human-readable timestamp plus relative age (e.g.
-`2026-09-29 08:35:25 (6m ago)`), and a live preview of that snapshot's
-contents (sessions/windows/panes + cwd/cmd for tmux; class/geometry/
-workspace/title for windows; tail of the file for logs).
+Every list shows a clear, human-readable absolute timestamp (e.g.
+`2026-09-29 08:35:25`), and a live preview of that snapshot's contents
+(sessions/windows/panes + cwd/cmd for tmux; class/geometry/workspace/title
+for windows; tail of the file for logs).
 
 Keys inside a list:
 
 | key      | tmux snapshots         | window snapshots       | logs              |
 |----------|------------------------|------------------------|-------------------|
 | `enter`  | restore this snapshot  | restore this snapshot  | view in `less -R` |
-| `ctrl-s` | save a new snapshot now| save a new snapshot now| —                 |
+| `alt-s`  | save a new snapshot now| save a new snapshot now| —                 |
 | `ctrl-x` | delete this snapshot   | delete this snapshot   | delete this log   |
 | `esc`    | back                   | back                   | back              |
+
+(`ctrl-s`/`ctrl-q` aren't used for anything — they're terminal flow
+control (XOFF/XON), swallowed by the tty driver before fzf, or any other
+app, ever sees them. If a terminal ever looks "frozen" after a stray
+ctrl-s, that's what happened; ctrl-q un-freezes it.)
 
 "Restore" is non-destructive by construction: it only creates sessions/
 windows/app instances that *aren't already running*; anything already
