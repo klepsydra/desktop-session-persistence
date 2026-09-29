@@ -3,16 +3,14 @@
 # setup saves: tmux/byobu layout snapshots, window-position snapshots, and
 # per-pane scrollback logs.
 #
-# Keys inside each list:
-#   enter   restore this snapshot (tmux/windows) or view it (logs)
-#   f5      save a new snapshot right now
-#   ctrl-x  delete the selected snapshot
-#   esc     back / quit
-#
-# (ctrl-s/ctrl-q are terminal XOFF/XON flow control, swallowed by the tty
-# driver itself before any application - including fzf - ever sees them;
-# and Alt+letter is grabbed by gnome-terminal (and most GTK apps) for menu
-# mnemonics - here Alt+S opens the Search menu. F5 avoids both.)
+# Navigation is plain list selection - up/down arrows or tab/shift-tab to
+# move, enter to choose, esc to back out. No ctrl/alt/function-key
+# shortcuts to remember or that risk being intercepted elsewhere
+# (ctrl-s/ctrl-q are terminal flow control; alt-<letter> is grabbed by
+# gnome-terminal and most GTK apps for menu mnemonics before it ever
+# reaches the program running inside them). Picking a snapshot opens a
+# small action menu (Restore / Delete / Back, or View / Delete / Back for
+# logs); "save a new snapshot now" is a pinned row at the top of the list.
 set -uo pipefail
 export SHELL=bash
 
@@ -28,6 +26,8 @@ TMUX_LOGS="$HOME/.tmux/logs"
 export RESURRECT_DIR RESURRECT_RESTORE RESURRECT_SAVE
 export WINSESS_LATEST WINSESS_HIST WINSESS_RESTORE WINSESS_SAVE TMUX_LOGS
 
+FZF_NAV=(--bind 'tab:down,shift-tab:up')
+
 human_ts() {  # 20260929T083525 -> 2026-09-29 08:35:25
   local raw="$1"
   echo "${raw:0:4}-${raw:4:2}-${raw:6:2} ${raw:9:2}:${raw:11:2}:${raw:13:2}"
@@ -42,6 +42,13 @@ export -f confirm
 
 pause() { read -r -p "press enter to continue..." _; }
 export -f pause
+
+menu_pick() {  # menu_pick "header" "opt1" "opt2" ...
+  local header="$1"; shift
+  printf '%s\n' "$@" | fzf --header "$header  (enter:choose  tab/shift-tab:move  esc:back)" \
+    --bind 'tab:down,shift-tab:up'
+}
+export -f menu_pick
 
 # ---------- tmux / byobu layout snapshots ----------
 
@@ -72,6 +79,16 @@ PYEOF
 }
 export -f fmt_resurrect
 
+preview_resurrect_row() {
+  if [ "$1" = "__SAVE_NOW__" ]; then
+    echo "Creates a fresh snapshot of the current tmux/byobu session layout"
+    echo "(sessions, windows, panes, working directories, running commands)."
+  else
+    fmt_resurrect "$1"
+  fi
+}
+export -f preview_resurrect_row
+
 list_resurrect() {
   local files last_target
   files=$(ls -t "$RESURRECT_DIR"/tmux_resurrect_*.txt 2>/dev/null)
@@ -89,10 +106,9 @@ export -f list_resurrect
 restore_resurrect() {
   local f="$1"
   [ -n "$f" ] || return
-  echo "Restore tmux/byobu layout from: $(basename "$f")"
-  echo "Creates any sessions/windows from that snapshot that aren't already"
-  echo "running now. Sessions that already exist are left untouched."
-  confirm "Proceed?" || { echo cancelled; sleep 1; return; }
+  echo "Restoring tmux/byobu layout from: $(basename "$f")"
+  echo "(creates any sessions/windows from it that aren't already running;"
+  echo " sessions that already exist are left untouched)"
   ln -sfn "$f" "$RESURRECT_DIR/last"
   bash "$RESURRECT_RESTORE"
   pause
@@ -115,17 +131,33 @@ export -f delete_resurrect
 save_resurrect_now() { bash "$RESURRECT_SAVE" quiet; }
 export -f save_resurrect_now
 
+resurrect_action_menu() {
+  local f="$1"
+  local choice
+  choice=$(menu_pick "acting on: $(basename "$f")" \
+    "Restore this snapshot" "Delete this snapshot" "Back")
+  case "$choice" in
+    "Restore this snapshot") restore_resurrect "$f" ;;
+    "Delete this snapshot") delete_resurrect "$f" ;;
+  esac
+}
+
 browse_resurrect() {
-  if [ ! -d "$RESURRECT_DIR" ] || [ -z "$(list_resurrect)" ]; then
-    echo "no tmux-resurrect snapshots yet"; sleep 1; return
-  fi
-  list_resurrect | fzf --delimiter='\t' --with-nth=1 \
-    --header 'tmux/byobu snapshots | enter:restore f5:save-now ctrl-x:delete esc:back  (* = "last")' \
-    --preview 'fmt_resurrect {2}' --preview-window=right:65% \
-    --bind 'enter:execute(restore_resurrect {2})+reload(list_resurrect)' \
-    --bind 'f5:execute-silent(save_resurrect_now)+reload(list_resurrect)' \
-    --bind 'ctrl-x:execute(delete_resurrect {2})+reload(list_resurrect)' \
-    > /dev/null
+  while true; do
+    local sel path
+    sel=$( { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_resurrect; } \
+      | fzf --delimiter='\t' --with-nth=1 \
+        --header 'tmux/byobu snapshots  (* = "last")  (enter:choose  tab/shift-tab:move  esc:back)' \
+        --preview 'preview_resurrect_row {2}' --preview-window=right:65% \
+        "${FZF_NAV[@]}" )
+    [ -n "$sel" ] || return
+    path=$(printf '%s' "$sel" | cut -f2)
+    if [ "$path" = "__SAVE_NOW__" ]; then
+      save_resurrect_now
+    else
+      resurrect_action_menu "$path"
+    fi
+  done
 }
 
 # ---------- window-position snapshots ----------
@@ -142,6 +174,16 @@ PYEOF
 }
 export -f fmt_window_snapshot
 
+preview_windows_row() {
+  if [ "$1" = "__SAVE_NOW__" ]; then
+    echo "Creates a fresh snapshot of currently open windows"
+    echo "(class, geometry, workspace, relaunch command)."
+  else
+    fmt_window_snapshot "$1"
+  fi
+}
+export -f preview_windows_row
+
 list_windows() {
   local files
   files=$(ls -t "$WINSESS_HIST"/windows_*.json 2>/dev/null)
@@ -157,11 +199,10 @@ export -f list_windows
 restore_windows() {
   local f="$1"
   [ -n "$f" ] || return
-  echo "Restore window positions from: $(basename "$f")"
-  echo "Relaunches any app whose window class isn't already open at least as"
-  echo "many times as was saved, then moves it to its saved spot. Windows"
-  echo "already open are left alone."
-  confirm "Proceed?" || { echo cancelled; sleep 1; return; }
+  echo "Restoring window positions from: $(basename "$f")"
+  echo "(relaunches any app whose class isn't already open at least as many"
+  echo " times as was saved, then moves it to its saved spot; already-open"
+  echo " windows are left alone)"
   cp "$f" "$WINSESS_LATEST"
   bash "$WINSESS_RESTORE"
   pause
@@ -180,17 +221,33 @@ export -f delete_windows
 save_windows_now() { bash "$WINSESS_SAVE"; }
 export -f save_windows_now
 
+windows_action_menu() {
+  local f="$1"
+  local choice
+  choice=$(menu_pick "acting on: $(basename "$f")" \
+    "Restore this snapshot" "Delete this snapshot" "Back")
+  case "$choice" in
+    "Restore this snapshot") restore_windows "$f" ;;
+    "Delete this snapshot") delete_windows "$f" ;;
+  esac
+}
+
 browse_windows() {
-  if [ ! -d "$WINSESS_HIST" ] || [ -z "$(list_windows)" ]; then
-    echo "no window-position snapshots yet"; sleep 1; return
-  fi
-  list_windows | fzf --delimiter='\t' --with-nth=1 \
-    --header 'window-position snapshots | enter:restore f5:save-now ctrl-x:delete esc:back' \
-    --preview 'fmt_window_snapshot {2}' --preview-window=right:65% \
-    --bind 'enter:execute(restore_windows {2})+reload(list_windows)' \
-    --bind 'f5:execute-silent(save_windows_now)+reload(list_windows)' \
-    --bind 'ctrl-x:execute(delete_windows {2})+reload(list_windows)' \
-    > /dev/null
+  while true; do
+    local sel path
+    sel=$( { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_windows; } \
+      | fzf --delimiter='\t' --with-nth=1 \
+        --header 'window-position snapshots  (enter:choose  tab/shift-tab:move  esc:back)' \
+        --preview 'preview_windows_row {2}' --preview-window=right:65% \
+        "${FZF_NAV[@]}" )
+    [ -n "$sel" ] || return
+    path=$(printf '%s' "$sel" | cut -f2)
+    if [ "$path" = "__SAVE_NOW__" ]; then
+      save_windows_now
+    else
+      windows_action_menu "$path"
+    fi
+  done
 }
 
 # ---------- scrollback logs ----------
@@ -216,23 +273,37 @@ delete_log() {
 }
 export -f delete_log
 
+log_action_menu() {
+  local f="$1"
+  local choice
+  choice=$(menu_pick "acting on: $(basename "$f")" \
+    "View in less" "Delete this log" "Back")
+  case "$choice" in
+    "View in less") less -R "$f" ;;
+    "Delete this log") delete_log "$f" ;;
+  esac
+}
+
 browse_logs() {
-  if [ ! -d "$TMUX_LOGS" ] || [ -z "$(list_logs)" ]; then
-    echo "no scrollback logs yet"; sleep 1; return
-  fi
-  list_logs | fzf --delimiter='\t' --with-nth=1 \
-    --header 'scrollback logs | enter:view (less) ctrl-x:delete esc:back' \
-    --preview 'tail -c 4000 {2} | cat -v' --preview-window=right:65% \
-    --bind 'enter:execute(less -R {2})' \
-    --bind 'ctrl-x:execute(delete_log {2})+reload(list_logs)' \
-    > /dev/null
+  while true; do
+    if [ -z "$(list_logs)" ]; then echo "no scrollback logs yet"; sleep 1; return; fi
+    local sel path
+    sel=$(list_logs | fzf --delimiter='\t' --with-nth=1 \
+      --header 'scrollback logs  (enter:choose  tab/shift-tab:move  esc:back)' \
+      --preview 'tail -c 4000 {2} | cat -v' --preview-window=right:65% \
+      "${FZF_NAV[@]}")
+    [ -n "$sel" ] || return
+    path=$(printf '%s' "$sel" | cut -f2)
+    log_action_menu "$path"
+  done
 }
 
 # ---------- top level ----------
 
 main_menu() {
   printf 'tmux/byobu layout snapshots\nwindow-position snapshots\nscrollback logs\n' \
-    | fzf --header 'view/manage saved sessions - pick a category (esc to quit)'
+    | fzf --header 'view/manage saved sessions  (enter:choose  tab/shift-tab:move  esc:quit)' \
+      "${FZF_NAV[@]}"
 }
 
 case "${1:-}" in

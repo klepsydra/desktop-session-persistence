@@ -93,22 +93,29 @@ Every list shows a clear, human-readable absolute timestamp (e.g.
 (sessions/windows/panes + cwd/cmd for tmux; class/geometry/workspace/title
 for windows; tail of the file for logs).
 
-Keys inside a list:
+There are no keyboard shortcuts to remember — just plain list navigation:
 
-| key      | tmux snapshots         | window snapshots       | logs              |
-|----------|------------------------|------------------------|-------------------|
-| `enter`  | restore this snapshot  | restore this snapshot  | view in `less -R` |
-| `f5`     | save a new snapshot now| save a new snapshot now| —                 |
-| `ctrl-x` | delete this snapshot   | delete this snapshot   | delete this log   |
-| `esc`    | back                   | back                   | back              |
+| key                | does                                              |
+|--------------------|---------------------------------------------------|
+| `↑`/`↓` or `tab`/`shift-tab` | move through the list                     |
+| `enter`            | choose the highlighted row                        |
+| `esc`              | back out one level (quits from the top menu)      |
 
-`ctrl-s`/`ctrl-q` aren't used for anything — they're terminal flow
-control (XOFF/XON), swallowed by the tty driver before fzf, or any other
-app, ever sees them (a stray `ctrl-s` can even "freeze" a terminal until
-`ctrl-q` is pressed). `alt-<letter>` isn't used either — gnome-terminal
-(and most GTK apps) grab bare Alt+letter for menu mnemonics before the
-keystroke ever reaches the program running inside it; `alt-s` in
-particular opens gnome-terminal's own Search menu. `f5` sidesteps both.
+A pinned **★ save a new snapshot now** row sits at the top of the
+tmux/window lists — tab down to it and hit enter. Picking any real
+snapshot opens a small follow-up menu (`Restore this snapshot` / `Delete
+this snapshot` / `Back`, or `View in less` / `Delete this log` / `Back`
+for logs) — again just move and enter, nothing to hold down.
+
+Earlier versions tried dedicated shortcut keys (`ctrl-s`/`ctrl-x`, then
+`alt-s`, then `F5`) and all of them turned out to be intercepted before
+fzf ever saw them: `ctrl-s`/`ctrl-q` are terminal flow control (XOFF/
+XON), consumed by the tty driver itself; `alt-<letter>` is grabbed by
+gnome-terminal (and most GTK apps) for menu mnemonics; and `F5` was
+claimed by something else in this environment too (terminal, WM, or the
+app itself vary by setup). Menu-driven `tab`/`enter` navigation has none
+of those failure modes — it's what any terminal app already treats as
+plain input.
 
 "Restore" is non-destructive by construction: it only creates sessions/
 windows/app instances that *aren't already running*; anything already
