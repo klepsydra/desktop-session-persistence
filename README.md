@@ -184,13 +184,21 @@ list, restore, delete, or save-now, all from one place:
 session-browser.sh          # menu: pick a category
 session-browser.sh tmux     # tmux/byobu layout snapshots
 session-browser.sh windows  # window-position snapshots
+session-browser.sh wezterm  # wezterm pane snapshots
+session-browser.sh tilix    # tilix tab snapshots
 session-browser.sh logs     # scrollback logs
 ```
 
 Every list shows a clear, human-readable absolute timestamp (e.g.
 `2026-09-29 08:35:25`), and a live preview of that snapshot's contents
 (sessions/windows/panes + cwd/cmd for tmux; class/geometry/workspace/title
-for windows; tail of the file for logs).
+for windows; tty/cwd per window for wezterm; tty/cwd per tab for tilix;
+tail of the file for logs).
+
+The wezterm category's restore action is clearly labeled
+*(single pane, experimental)* and explains why inline before it runs -
+see [WezTerm (default terminal) + Tilix](#wezterm-default-terminal--tilix)
+above for the real bug behind that restriction.
 
 There are no keyboard shortcuts to remember — just plain list navigation:
 
