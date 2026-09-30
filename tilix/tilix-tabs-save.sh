@@ -10,6 +10,7 @@
 # window can't be recovered, so window-session-restore.sh reopens each
 # saved tab as its own separate window instead.
 set -euo pipefail
+export DISPLAY="${DISPLAY:-:0}"
 
 OUT_DIR="$HOME/.local/share/window-session"
 HIST_DIR="$OUT_DIR/history"

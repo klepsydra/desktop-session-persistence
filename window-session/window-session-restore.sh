@@ -5,6 +5,7 @@
 #
 # Usage: window-session-restore.sh [--dry-run] [--only-class SUBSTRING]
 set -uo pipefail
+export DISPLAY="${DISPLAY:-:0}"
 
 DRY_RUN=0
 ONLY_CLASS=""
@@ -35,7 +36,11 @@ if only_class:
     saved = [w for w in saved if only_class in w['class']]
 
 def current_windows():
-    r = subprocess.run(['wmctrl', '-lpxG'], capture_output=True, text=True, check=True)
+    r = subprocess.run(['wmctrl', '-lpxG'], capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"! wmctrl failed ({r.stderr.strip() or 'no error message'}); "
+              "treating as no windows open. Is DISPLAY set correctly?")
+        return []
     wins = []
     for line in r.stdout.splitlines():
         fields = line.split(None, 8)

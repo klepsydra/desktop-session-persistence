@@ -45,7 +45,9 @@ human_ts() {  # 20260929T083525 -> 2026-09-29 08:35:25
 export -f human_ts
 
 confirm() {
-  read -r -p "$1 [y/N] " ans
+  local ans
+  read -n 1 -r -p "$1 [y/N] " ans
+  echo
   [[ "$ans" =~ ^[Yy]$ ]]
 }
 export -f confirm
@@ -305,25 +307,6 @@ list_wezterm() {
 }
 export -f list_wezterm
 
-restore_wezterm() {
-  local f="$1"
-  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
-  echo "Restoring ONE wezterm pane (the most recently active) from: $(basename "$f")"
-  echo
-  echo "Deliberately restores only one window, not the full saved set -"
-  echo "wezterm-mux-server has a real bug where spawning more than one new"
-  echo "window in a row without a GUI actively attached corrupts its"
-  echo "internal state (confirmed via a panic in its own log). See the"
-  echo "repo README for details. This may also simply fail (a [FAIL] line,"
-  echo "nothing opened) - that's the known/expected failure mode, not"
-  echo "something gone wrong on your end."
-  confirm "Proceed?" || { echo cancelled; sleep 1; return; }
-  cp "$f" "$WEZTERM_LATEST"
-  bash "$WEZTERM_RESTORE"
-  pause
-}
-export -f restore_wezterm
-
 delete_wezterm() {
   local f="$1"
   [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
@@ -342,10 +325,9 @@ export -f list_wezterm_full
 wezterm_action_menu() {
   local f="$1"
   local choice
-  choice=$(menu_pick "acting on: $(basename "$f")" \
-    "Restore this snapshot (single pane, experimental)" "Delete this snapshot" "Back")
+  choice=$(menu_pick "acting on: $(basename "$f")  (restore disabled - crashed the mux server on 2026-09-30, see README)" \
+    "Delete this snapshot" "Back")
   case "$choice" in
-    "Restore this snapshot (single pane, experimental)") restore_wezterm "$f" ;;
     "Delete this snapshot") delete_wezterm "$f" ;;
   esac
 }
@@ -355,7 +337,7 @@ browse_wezterm() {
     local sel path
     sel=$(list_wezterm_full \
       | fzf --delimiter='\t' --with-nth=1 \
-        --header 'wezterm panes  (restore is single-pane/experimental - see README)  (enter:choose  tab/shift-tab:move  del:delete  esc:back)' \
+        --header 'wezterm panes  (restore disabled - crashed the mux server, see README)  (enter:choose  tab/shift-tab:move  del:delete  esc:back)' \
         --preview 'preview_wezterm_row {2}' --preview-window=right:65% \
         "${FZF_NAV[@]}" --bind 'del:execute(delete_wezterm {2})+reload(list_wezterm_full)' )
     [ -n "$sel" ] || return

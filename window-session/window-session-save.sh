@@ -2,6 +2,7 @@
 # Snapshot open windows (class, geometry, workspace, relaunch command) to JSON.
 # Run periodically and on logout; paired with window-session-restore.sh.
 set -euo pipefail
+export DISPLAY="${DISPLAY:-:0}"
 
 OUT="$HOME/.local/share/window-session/windows.json"
 TMP="$OUT.tmp.$$"
@@ -27,9 +28,14 @@ def read_cmdline(pid):
     except OSError:
         return None
 
-result = subprocess.run(
-    ['wmctrl', '-lpxG'], capture_output=True, text=True, check=True
-)
+result = subprocess.run(['wmctrl', '-lpxG'], capture_output=True, text=True)
+if result.returncode != 0:
+    sys.stderr.write(
+        f"wmctrl failed ({result.stderr.strip() or 'no error message'}); "
+        "leaving the previous saved window list untouched. Is DISPLAY set "
+        "correctly?\n"
+    )
+    sys.exit(1)
 
 windows = []
 for line in result.stdout.splitlines():

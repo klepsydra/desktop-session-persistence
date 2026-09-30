@@ -4,8 +4,10 @@ Description=WezTerm mux server (persistent terminal sessions)
 [Service]
 Type=simple
 ExecStart=/usr/bin/wezterm-mux-server
-Restart=on-failure
-RestartSec=2
+# Deliberately no Restart= : if this crashes (it has - a real upstream
+# panic, see README), auto-restarting would silently replace it with a
+# fresh, empty daemon, hiding the fact that whatever panes existed are
+# gone. Better that it visibly stays down until restarted by hand.
 
 [Install]
 WantedBy=default.target

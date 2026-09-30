@@ -2,19 +2,20 @@
 # Reopen the most recently active wezterm pane recorded by
 # wezterm-tabs-save.sh, at its last working directory.
 #
-# Deliberately restores only ONE window, not the full saved set. Tested
-# extensively (including on wezterm-nightly): calling `wezterm cli spawn
-# --new-window` more than once in a row - with or without a GUI already
-# attached, with generous delays between calls - reliably corrupts
-# wezterm-mux-server's internal pane/window bookkeeping: later calls return
-# stale/duplicate pane ids, and with a GUI attached it can spray out a dozen
-# extra empty windows. This is a real bug in wezterm's mux server, not
-# something safe to script around - so rather than risk a runaway window
-# explosion during an unattended login, this only ever issues a single
-# spawn call. If you had several wezterm windows, only the most recent
-# comes back automatically; open more normally afterwards (interactive,
-# GUI-driven tab/window creation is unaffected by this - it's specifically
-# rapid unattended CLI spawning that triggers it).
+# NOT wired into session-browser.sh any more - only run this by hand, and
+# only if you're fine with it possibly taking your whole wezterm session
+# down. On 2026-09-30, a single spawn call through this exact script
+# crashed wezterm-mux-server outright (a real panic,
+# wezterm-client/src/domain.rs:624 - "no such window!?") while a real GUI
+# was attached with real open panes. systemd's Restart=on-failure then
+# silently brought the daemon back up empty, losing that session - which
+# is also why the service no longer auto-restarts (see
+# wezterm-mux-server.service): better a visible outage than a silent one.
+#
+# Deliberately restores only ONE window, not the full saved set - that
+# was the original mitigation for a narrower version of this bug (multiple
+# spawns in a row corrupting pane bookkeeping while surviving). A single
+# spawn turned out not to be safe either.
 #
 # Usage: wezterm-tabs-restore.sh [--boot]
 #   --boot   only used by the login autostart entry: gated by a per-boot

@@ -118,7 +118,8 @@ daemon rather than a throwaway local session. **This part is solid**:
 closing the GUI window, or the GUI crashing, does not touch the panes or
 their shells - they keep running in the daemon, scrollback (100k lines)
 and all, until you reattach. An autostart entry opens a `wezterm` window
-at login.
+at login. The service has no `Restart=` directive, deliberately - see
+below for why.
 
 `wezterm-tabs-save.sh` snapshots every live pane (tty, cwd, original
 window/tab grouping) via WezTerm's own `wezterm cli list --format json` -
@@ -126,29 +127,38 @@ no `/proc` scraping needed here, unlike gnome-terminal/Tilix, since
 WezTerm exposes this natively. Runs on the same save cadence as
 everything else.
 
-**Automatic restore-on-reboot is intentionally NOT wired up.** After
-extensive testing - headless, with a GUI attached first, with generous
+**Restore is not wired up anywhere, automatic or manual, because it has
+actually crashed a live session - this isn't a hypothetical risk.**
+Initial testing (headless, with a GUI attached first, with generous
 delays between calls, on both the ~2.5-year-old "stable" apt package and
-the actively-updated `wezterm-nightly` (switched to nightly specifically
-to chase this down) - `wezterm cli spawn --new-window` reliably breaks
-the second time it's called in a domain with no GUI actively rendering
-it: later calls return stale/duplicate pane ids, and
-`wezterm-mux-server`'s own log shows a genuine internal panic
-(`wezterm-client/src/domain.rs:624`, survived by the server process but
-leaving the request half-finished). With a GUI already attached it's
-worse - one run sprayed out a dozen empty phantom windows in seconds.
-This is a real upstream bug, not a scripting problem, and automating
-something that can spray windows during an unattended login is worse
-than doing nothing.
+`wezterm-nightly`) found `wezterm cli spawn --new-window` corrupting
+`wezterm-mux-server`'s internal state on repeated calls, so the shipped
+script was scaled back to a single spawn attempt, believed safe.
 
-What's shipped instead: `wezterm-tabs-restore.sh` only ever issues **one**
-spawn call (the most-recently-active saved pane, at its cwd), and is not
-run automatically - it's there to invoke manually
-(`wezterm-tabs-restore.sh`) if you want to try recovering your last
-directory after a reboot and are fine with it occasionally failing
-harmlessly (a `[FAIL]` line, no window sprayed) rather than trying it in
-an unattended context. Everyday persistence (surviving a GUI close
-without a reboot) needs none of this - the daemon already has it covered.
+It wasn't. On 2026-09-30, running that single-spawn restore from
+`session-browser.sh` - by hand, with a real GUI attached showing a real
+session - crashed `wezterm-mux-server` outright: a genuine panic
+(`wezterm-client/src/domain.rs:624`, `"no such window!?"`, exit code
+101), confirmed in the service's journal. `Restart=on-failure` then did
+exactly what it's supposed to and silently brought the daemon back up -
+empty, with the prior panes gone. The restore feature was meant to
+*add* a recovered window in the worst case, or fail quietly in the
+better case; instead it took down the thing it was supposed to be
+restoring. The warning text that used to sit in front of this action
+described the earlier (also real, just less severe) corruption failure
+mode and said to expect a quiet `[FAIL]`, not this - so the response
+wasn't "warn more," it was remove the capability:
+`session-browser.sh`'s wezterm category no longer offers restore at all
+(view/save/delete only), and the systemd service's `Restart=` was
+dropped so a future crash stays visibly down instead of silently
+resurrecting an amnesiac daemon. `wezterm-tabs-restore.sh` is still on
+disk with this incident documented at the top, for anyone who wants to
+run it by hand with eyes fully open - `session-browser.sh` won't run it
+for you.
+
+Everyday persistence (surviving a GUI close without a reboot) needs
+none of this and remains solid - only *restoring after the daemon
+itself is gone* (a reboot, or now a crash) is the part that isn't safe.
 
 ### Tilix: cwd only, same approach as gnome-terminal
 
@@ -263,6 +273,33 @@ then collapses the result if it matches the prior save. The "latest"
 pointer files (`windows.json`, `wezterm-tabs.json`, etc. - what the
 restore scripts actually read) are unaffected either way; only the
 *history* used for browsing is deduplicated.
+
+### `wmctrl` needs `DISPLAY` set - and one long-lived shell didn't have it
+
+Running window-position restore from a real terminal hit an uncaught
+Python traceback: `wmctrl -lpxG` exited 1. Reproduced directly - `wmctrl`
+needs `DISPLAY` to reach the X server, and it was unset in that
+particular shell (a long-lived byobu pane whose environment predates
+whatever set `DISPLAY` for the rest of the session is the likely cause,
+though the exact origin doesn't matter as much as the fix). Every script
+that shells out to `wmctrl` (`window-session-save.sh`,
+`window-session-restore.sh`, `gterm-tabs-save.sh`, `tilix-tabs-save.sh`,
+`wezterm-tabs-save.sh`) now does `export DISPLAY="${DISPLAY:-:0}"` up
+front - `:0` because that's the only display this machine ever runs -
+and none of them let a `wmctrl` failure crash with a raw traceback
+any more: a real failure (as opposed to just "unset, now defaulted")
+prints one clear line and leaves whatever was already saved untouched,
+rather than silently overwriting it with an empty window list.
+
+### `session-browser.sh` delete confirmations are a single keypress
+
+`confirm()` used to need `y` *and* Enter, which - combined with `del`
+switching fzf to a full alternate screen to ask the question - felt like
+a lot of ceremony for a delete. It now reads a single keypress with no
+Enter required (`read -n 1`); the alternate-screen switch itself is
+inherent to how fzf's `execute()` works when it needs real interactive
+input, not something scriptable away without dropping the confirmation
+prompt entirely.
 
 ## Install on a fresh machine
 
