@@ -115,7 +115,7 @@ export -f list_resurrect
 
 restore_resurrect() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   echo "Restoring tmux/byobu layout from: $(basename "$f")"
   echo "(creates any sessions/windows from it that aren't already running;"
   echo " sessions that already exist are left untouched)"
@@ -127,7 +127,7 @@ export -f restore_resurrect
 
 delete_resurrect() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   confirm "Delete snapshot $(basename "$f")?" || { echo cancelled; sleep 1; return; }
   if [ "$(readlink -f "$RESURRECT_DIR/last" 2>/dev/null)" = "$(readlink -f "$f")" ]; then
     echo "(that was the 'last' snapshot; clearing the pointer)"
@@ -140,6 +140,9 @@ export -f delete_resurrect
 
 save_resurrect_now() { bash "$RESURRECT_SAVE" quiet; }
 export -f save_resurrect_now
+
+list_resurrect_full() { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_resurrect; }
+export -f list_resurrect_full
 
 resurrect_action_menu() {
   local f="$1"
@@ -155,11 +158,11 @@ resurrect_action_menu() {
 browse_resurrect() {
   while true; do
     local sel path
-    sel=$( { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_resurrect; } \
+    sel=$(list_resurrect_full \
       | fzf --delimiter='\t' --with-nth=1 \
-        --header 'tmux/byobu snapshots  (* = "last")  (enter:choose  tab/shift-tab:move  esc:back)' \
+        --header 'tmux/byobu snapshots  (* = "last")  (enter:choose  tab/shift-tab:move  del:delete  esc:back)' \
         --preview 'preview_resurrect_row {2}' --preview-window=right:65% \
-        "${FZF_NAV[@]}" )
+        "${FZF_NAV[@]}" --bind 'del:execute(delete_resurrect {2})+reload(list_resurrect_full)' )
     [ -n "$sel" ] || return
     path=$(printf '%s' "$sel" | cut -f2)
     if [ "$path" = "__SAVE_NOW__" ]; then
@@ -208,7 +211,7 @@ export -f list_windows
 
 restore_windows() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   echo "Restoring window positions from: $(basename "$f")"
   echo "(relaunches any app whose class isn't already open at least as many"
   echo " times as was saved, then moves it to its saved spot; already-open"
@@ -221,7 +224,7 @@ export -f restore_windows
 
 delete_windows() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   confirm "Delete snapshot $(basename "$f")?" || { echo cancelled; sleep 1; return; }
   rm -f "$f"
   sleep 1
@@ -230,6 +233,9 @@ export -f delete_windows
 
 save_windows_now() { bash "$WINSESS_SAVE"; }
 export -f save_windows_now
+
+list_windows_full() { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_windows; }
+export -f list_windows_full
 
 windows_action_menu() {
   local f="$1"
@@ -245,11 +251,11 @@ windows_action_menu() {
 browse_windows() {
   while true; do
     local sel path
-    sel=$( { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_windows; } \
+    sel=$(list_windows_full \
       | fzf --delimiter='\t' --with-nth=1 \
-        --header 'window-position snapshots  (enter:choose  tab/shift-tab:move  esc:back)' \
+        --header 'window-position snapshots  (enter:choose  tab/shift-tab:move  del:delete  esc:back)' \
         --preview 'preview_windows_row {2}' --preview-window=right:65% \
-        "${FZF_NAV[@]}" )
+        "${FZF_NAV[@]}" --bind 'del:execute(delete_windows {2})+reload(list_windows_full)' )
     [ -n "$sel" ] || return
     path=$(printf '%s' "$sel" | cut -f2)
     if [ "$path" = "__SAVE_NOW__" ]; then
@@ -301,7 +307,7 @@ export -f list_wezterm
 
 restore_wezterm() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   echo "Restoring ONE wezterm pane (the most recently active) from: $(basename "$f")"
   echo
   echo "Deliberately restores only one window, not the full saved set -"
@@ -320,7 +326,7 @@ export -f restore_wezterm
 
 delete_wezterm() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   confirm "Delete snapshot $(basename "$f")?" || { echo cancelled; sleep 1; return; }
   rm -f "$f"
   sleep 1
@@ -329,6 +335,9 @@ export -f delete_wezterm
 
 save_wezterm_now() { bash "$WEZTERM_SAVE"; }
 export -f save_wezterm_now
+
+list_wezterm_full() { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_wezterm; }
+export -f list_wezterm_full
 
 wezterm_action_menu() {
   local f="$1"
@@ -344,11 +353,11 @@ wezterm_action_menu() {
 browse_wezterm() {
   while true; do
     local sel path
-    sel=$( { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_wezterm; } \
+    sel=$(list_wezterm_full \
       | fzf --delimiter='\t' --with-nth=1 \
-        --header 'wezterm panes  (restore is single-pane/experimental - see README)  (enter:choose  tab/shift-tab:move  esc:back)' \
+        --header 'wezterm panes  (restore is single-pane/experimental - see README)  (enter:choose  tab/shift-tab:move  del:delete  esc:back)' \
         --preview 'preview_wezterm_row {2}' --preview-window=right:65% \
-        "${FZF_NAV[@]}" )
+        "${FZF_NAV[@]}" --bind 'del:execute(delete_wezterm {2})+reload(list_wezterm_full)' )
     [ -n "$sel" ] || return
     path=$(printf '%s' "$sel" | cut -f2)
     if [ "$path" = "__SAVE_NOW__" ]; then
@@ -396,7 +405,7 @@ export -f list_tilix
 
 restore_tilix() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   echo "Restoring Tilix tabs from: $(basename "$f")"
   echo "(each saved tab reopens as its own new Tilix window at its last"
   echo " cwd - Tilix's CLI can't chain multiple tabs into one window the"
@@ -410,7 +419,7 @@ export -f restore_tilix
 
 delete_tilix() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   confirm "Delete snapshot $(basename "$f")?" || { echo cancelled; sleep 1; return; }
   rm -f "$f"
   sleep 1
@@ -419,6 +428,9 @@ export -f delete_tilix
 
 save_tilix_now() { bash "$TILIX_SAVE"; }
 export -f save_tilix_now
+
+list_tilix_full() { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_tilix; }
+export -f list_tilix_full
 
 tilix_action_menu() {
   local f="$1"
@@ -434,11 +446,11 @@ tilix_action_menu() {
 browse_tilix() {
   while true; do
     local sel path
-    sel=$( { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_tilix; } \
+    sel=$(list_tilix_full \
       | fzf --delimiter='\t' --with-nth=1 \
-        --header 'tilix tabs  (* = currently-focused tab)  (enter:choose  tab/shift-tab:move  esc:back)' \
+        --header 'tilix tabs  (* = currently-focused tab)  (enter:choose  tab/shift-tab:move  del:delete  esc:back)' \
         --preview 'preview_tilix_row {2}' --preview-window=right:65% \
-        "${FZF_NAV[@]}" )
+        "${FZF_NAV[@]}" --bind 'del:execute(delete_tilix {2})+reload(list_tilix_full)' )
     [ -n "$sel" ] || return
     path=$(printf '%s' "$sel" | cut -f2)
     if [ "$path" = "__SAVE_NOW__" ]; then
@@ -463,9 +475,41 @@ list_logs() {
 }
 export -f list_logs
 
+list_logs_full() { printf '\xe2\x98\x85 save a new snapshot now\t__SAVE_NOW__\n'; list_logs; }
+export -f list_logs_full
+
+# Logs are continuously appended to already (that's the whole point - see
+# the tmux.conf pipe-pane hooks), so "save now" here means something
+# slightly different: force a checkpoint of the FULL current scrollback
+# buffer (not just what's been output since the pipe started) into each
+# live pane's log right now.
+save_logs_now() {
+  mkdir -p "$TMUX_LOGS"
+  tmux list-panes -a -F '#{session_name} #{window_index} #{pane_index} #{pane_id}' 2>/dev/null \
+    | while read -r sess win pane pane_id; do
+      {
+        echo "--- manual snapshot checkpoint: $(date '+%Y-%m-%d %H:%M:%S') ---"
+        tmux capture-pane -p -S - -t "$pane_id"
+      } >> "$TMUX_LOGS/${sess}_${win}-${pane}.log"
+    done
+}
+export -f save_logs_now
+
+preview_logs_row() {
+  if [ "$1" = "__SAVE_NOW__" ]; then
+    echo "Checkpoints the FULL current scrollback buffer of every live tmux"
+    echo "pane into its log file right now (logs are already being written"
+    echo "continuously - this just forces everything currently in the"
+    echo "buffer onto disk, not only what's been output since)."
+  else
+    tail -c 4000 "$1" | cat -v
+  fi
+}
+export -f preview_logs_row
+
 delete_log() {
   local f="$1"
-  [ -n "$f" ] || return
+  [ -n "$f" ] && [ "$f" != "__SAVE_NOW__" ] || return
   confirm "Delete log $(basename "$f")?" || { echo cancelled; sleep 1; return; }
   rm -f "$f"
   sleep 1
@@ -485,15 +529,18 @@ log_action_menu() {
 
 browse_logs() {
   while true; do
-    if [ -z "$(list_logs)" ]; then echo "no scrollback logs yet"; sleep 1; return; fi
     local sel path
-    sel=$(list_logs | fzf --delimiter='\t' --with-nth=1 \
-      --header 'scrollback logs  (enter:choose  tab/shift-tab:move  esc:back)' \
-      --preview 'tail -c 4000 {2} | cat -v' --preview-window=right:65% \
-      "${FZF_NAV[@]}")
+    sel=$(list_logs_full | fzf --delimiter='\t' --with-nth=1 \
+      --header 'scrollback logs  (enter:choose  tab/shift-tab:move  del:delete  esc:back)' \
+      --preview 'preview_logs_row {2}' --preview-window=right:65% \
+      "${FZF_NAV[@]}" --bind 'del:execute(delete_log {2})+reload(list_logs_full)')
     [ -n "$sel" ] || return
     path=$(printf '%s' "$sel" | cut -f2)
-    log_action_menu "$path"
+    if [ "$path" = "__SAVE_NOW__" ]; then
+      save_logs_now
+    else
+      log_action_menu "$path"
+    fi
   done
 }
 

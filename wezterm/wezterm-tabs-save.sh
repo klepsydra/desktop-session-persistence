@@ -58,5 +58,4 @@ PYEOF
 LATEST="$OUT_DIR/wezterm-tabs.json"
 mv "$TMP" "$LATEST"
 
-cp "$LATEST" "$HIST_DIR/wezterm-tabs_$(date +%Y%m%dT%H%M%S).json"
-ls -t "$HIST_DIR"/wezterm-tabs_*.json 2>/dev/null | tail -n +21 | xargs -r rm --
+"$HOME/.local/bin/history-snapshot.sh" "$LATEST" "$HIST_DIR" wezterm-tabs json

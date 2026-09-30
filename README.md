@@ -200,29 +200,39 @@ The wezterm category's restore action is clearly labeled
 see [WezTerm (default terminal) + Tilix](#wezterm-default-terminal--tilix)
 above for the real bug behind that restriction.
 
-There are no keyboard shortcuts to remember — just plain list navigation:
+Plain list navigation, plus one direct key for the one action common to
+every category and worth a shortcut - deleting:
 
 | key                | does                                              |
 |--------------------|---------------------------------------------------|
 | `↑`/`↓` or `tab`/`shift-tab` | move through the list                     |
 | `enter`            | choose the highlighted row                        |
+| `del`              | delete the highlighted snapshot/log directly (with a y/N prompt) |
 | `esc`              | back out one level (quits from the top menu)      |
 
-A pinned **★ save a new snapshot now** row sits at the top of the
-tmux/window lists — tab down to it and hit enter. Picking any real
-snapshot opens a small follow-up menu (`Restore this snapshot` / `Delete
-this snapshot` / `Back`, or `View in less` / `Delete this log` / `Back`
-for logs) — again just move and enter, nothing to hold down.
+Every one of the five categories - tmux, window-position, wezterm,
+tilix, and scrollback logs - has **both** a save-now and a delete path:
+a pinned **★ save a new snapshot now** row at the top of the list (tab
+down to it, hit enter), and `del` on any real entry to delete it on the
+spot. Picking a real snapshot with `enter` instead opens a small
+follow-up menu (`Restore this snapshot` / `Delete this snapshot` /
+`Back`, or `View in less` / `Delete this log` / `Back` for logs) - `del`
+and the menu's delete option do the same thing, `del` is just faster.
+For logs specifically, "save now" means something slightly different
+from the other four: logs are already being written continuously (that's
+the whole point), so it forces a checkpoint of the *entire* current
+scrollback buffer into the log right now, rather than only what's
+already been piped to disk.
 
-Earlier versions tried dedicated shortcut keys (`ctrl-s`/`ctrl-x`, then
-`alt-s`, then `F5`) and all of them turned out to be intercepted before
-fzf ever saw them: `ctrl-s`/`ctrl-q` are terminal flow control (XOFF/
-XON), consumed by the tty driver itself; `alt-<letter>` is grabbed by
-gnome-terminal (and most GTK apps) for menu mnemonics; and `F5` was
-claimed by something else in this environment too (terminal, WM, or the
-app itself vary by setup). Menu-driven `tab`/`enter` navigation has none
-of those failure modes — it's what any terminal app already treats as
-plain input.
+`del` was chosen deliberately, after three earlier attempts at dedicated
+shortcuts all turned out to be intercepted before fzf ever saw them:
+`ctrl-s`/`ctrl-x` (terminal flow control, XOFF/XON, consumed by the tty
+driver itself), `alt-s` (grabbed by gnome-terminal's menu mnemonics -
+Search, specifically), then `F5` (claimed by something else in this
+environment too). The dedicated Delete key isn't a modifier combo and
+isn't claimed by any of those layers, so it's the one shortcut that's
+actually reliable here; everything else stays plain `tab`/`enter`
+navigation.
 
 "Restore" is non-destructive by construction: it only creates sessions/
 windows/app instances that *aren't already running*; anything already
@@ -236,6 +246,23 @@ keeps a rotating history of its last 20 snapshots in
 `~/.local/share/window-session/history/` so there's something to browse
 (the "latest" `windows.json` used by `window-session-restore.sh` is
 unaffected).
+
+### History doesn't fill up with duplicates
+
+All four of the custom save scripts (window-position, gnome-terminal,
+wezterm, tilix) run on a timer regardless of whether anything actually
+changed, which at one point meant e.g. wezterm's history directory held
+20 files with exactly 1 unique content between them. `history-snapshot.sh`
+is a small shared helper - compare the new snapshot against the most
+recent existing one, byte-for-byte, and skip writing a new history entry
+if they're identical - that every save script now calls instead of
+unconditionally `cp`-ing a new timestamped file every run. tmux-resurrect
+(third-party, so not editable directly) gets the same treatment via a
+wrapper, `resurrect-save-dedup.sh`, that runs its real save script and
+then collapses the result if it matches the prior save. The "latest"
+pointer files (`windows.json`, `wezterm-tabs.json`, etc. - what the
+restore scripts actually read) are unaffected either way; only the
+*history* used for browsing is deduplicated.
 
 ## Install on a fresh machine
 

@@ -66,11 +66,9 @@ PYEOF
 
 mv "$TMP" "$OUT"
 
-# Keep a rotating history of snapshots (last 20) so they're browsable later.
-HIST_DIR="$HOME/.local/share/window-session/history"
-mkdir -p "$HIST_DIR"
-cp "$OUT" "$HIST_DIR/windows_$(date +%Y%m%dT%H%M%S).json"
-ls -t "$HIST_DIR"/windows_*.json 2>/dev/null | tail -n +21 | xargs -r rm --
+# Keep a rotating history of snapshots (last 20, skipping ones identical to
+# the prior save) so they're browsable later.
+"$HOME/.local/bin/history-snapshot.sh" "$OUT" "$HOME/.local/share/window-session/history" windows json
 
 # Best-effort gnome-terminal tab/cwd capture (separate script - see there
 # for what it can/can't recover).

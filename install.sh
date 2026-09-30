@@ -18,19 +18,22 @@ link() {
 link tmux/tmux.conf .tmux.conf
 link tmux/byobu-include.tmux.conf .config/byobu/.tmux.conf
 link tmux/scripts/replay-logs.sh .tmux/scripts/replay-logs.sh
+link tmux/scripts/resurrect-save-dedup.sh .tmux/scripts/resurrect-save-dedup.sh
 
 link window-session/window-session-save.sh .local/bin/window-session-save.sh
 link window-session/window-session-restore.sh .local/bin/window-session-restore.sh
 link window-session/gterm-tabs-save.sh .local/bin/gterm-tabs-save.sh
 link window-session/session-browser.sh .local/bin/session-browser.sh
+link window-session/history-snapshot.sh .local/bin/history-snapshot.sh
 link wezterm/wezterm-tabs-save.sh .local/bin/wezterm-tabs-save.sh
 link wezterm/wezterm-tabs-restore.sh .local/bin/wezterm-tabs-restore.sh
 link tilix/tilix-tabs-save.sh .local/bin/tilix-tabs-save.sh
 chmod +x "$HOME/.local/bin/window-session-save.sh" "$HOME/.local/bin/window-session-restore.sh" \
   "$HOME/.local/bin/gterm-tabs-save.sh" "$HOME/.local/bin/session-browser.sh" \
+  "$HOME/.local/bin/history-snapshot.sh" \
   "$HOME/.local/bin/wezterm-tabs-save.sh" "$HOME/.local/bin/wezterm-tabs-restore.sh" \
   "$HOME/.local/bin/tilix-tabs-save.sh"
-chmod +x "$HOME/.tmux/scripts/replay-logs.sh"
+chmod +x "$HOME/.tmux/scripts/replay-logs.sh" "$HOME/.tmux/scripts/resurrect-save-dedup.sh"
 
 link wezterm/wezterm.lua .config/wezterm/wezterm.lua
 

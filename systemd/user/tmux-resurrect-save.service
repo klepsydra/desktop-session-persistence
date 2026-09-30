@@ -3,4 +3,4 @@ Description=Save tmux session layout (tmux-resurrect)
 
 [Service]
 Type=oneshot
-ExecStart=%h/.tmux/plugins/tmux-resurrect/scripts/save.sh quiet
+ExecStart=%h/.tmux/scripts/resurrect-save-dedup.sh quiet

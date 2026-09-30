@@ -113,5 +113,4 @@ PYEOF
 LATEST="$OUT_DIR/gterm-tabs.json"
 mv "$TMP" "$LATEST"
 
-cp "$LATEST" "$HIST_DIR/gterm-tabs_$(date +%Y%m%dT%H%M%S).json"
-ls -t "$HIST_DIR"/gterm-tabs_*.json 2>/dev/null | tail -n +21 | xargs -r rm --
+"$HOME/.local/bin/history-snapshot.sh" "$LATEST" "$HIST_DIR" gterm-tabs json
