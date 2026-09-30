@@ -63,17 +63,40 @@ def gnome_terminal_tabs_cmd():
         cmd += ['--tab', '--working-directory', cwd]
     return cmd
 
+def load_cwds(name):
+    path = os.path.expanduser(f'~/.local/share/window-session/{name}.json')
+    try:
+        with open(path) as f:
+            tabs = json.load(f).get('tabs', [])
+    except (OSError, json.JSONDecodeError):
+        return []
+    return [t['cwd'] for t in tabs if t.get('cwd') and os.path.isdir(t['cwd'])]
+
 _gterm_tabs_consumed = False
+_tilix_cwds = load_cwds('tilix-tabs')  # consumed one-per-window, see below
 
 def launch_cmd_for(win):
-    global _gterm_tabs_consumed
+    global _gterm_tabs_consumed, _tilix_cwds
     cls = win['class']
     cmdline = win.get('cmdline')
+
     if cls.startswith('gnome-terminal-server'):
+        # gnome-terminal can chain multiple --tab flags into one command,
+        # so all saved tabs get consolidated into this one relaunched window.
         if not _gterm_tabs_consumed:
             _gterm_tabs_consumed = True
             return gnome_terminal_tabs_cmd() or ['gnome-terminal']
         return ['gnome-terminal']
+
+    if cls.startswith('tilix'):
+        # Tilix has no equivalent chaining, so each restored window gets at
+        # most one saved tab's cwd; extra missing windows fall back to a
+        # bare default.
+        if _tilix_cwds:
+            cwd = _tilix_cwds.pop(0)
+            return ['tilix', '--working-directory', cwd]
+        return ['tilix']
+
     if not cmdline:
         return None
     return cmdline

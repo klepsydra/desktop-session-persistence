@@ -21,17 +21,28 @@ link tmux/scripts/replay-logs.sh .tmux/scripts/replay-logs.sh
 
 link window-session/window-session-save.sh .local/bin/window-session-save.sh
 link window-session/window-session-restore.sh .local/bin/window-session-restore.sh
+link window-session/gterm-tabs-save.sh .local/bin/gterm-tabs-save.sh
 link window-session/session-browser.sh .local/bin/session-browser.sh
-chmod +x "$HOME/.local/bin/window-session-save.sh" "$HOME/.local/bin/window-session-restore.sh" "$HOME/.local/bin/session-browser.sh"
+link wezterm/wezterm-tabs-save.sh .local/bin/wezterm-tabs-save.sh
+link wezterm/wezterm-tabs-restore.sh .local/bin/wezterm-tabs-restore.sh
+link tilix/tilix-tabs-save.sh .local/bin/tilix-tabs-save.sh
+chmod +x "$HOME/.local/bin/window-session-save.sh" "$HOME/.local/bin/window-session-restore.sh" \
+  "$HOME/.local/bin/gterm-tabs-save.sh" "$HOME/.local/bin/session-browser.sh" \
+  "$HOME/.local/bin/wezterm-tabs-save.sh" "$HOME/.local/bin/wezterm-tabs-restore.sh" \
+  "$HOME/.local/bin/tilix-tabs-save.sh"
 chmod +x "$HOME/.tmux/scripts/replay-logs.sh"
+
+link wezterm/wezterm.lua .config/wezterm/wezterm.lua
 
 link systemd/user/tmux-resurrect-save.service .config/systemd/user/tmux-resurrect-save.service
 link systemd/user/tmux-resurrect-save.timer .config/systemd/user/tmux-resurrect-save.timer
 link systemd/user/window-session-save.service .config/systemd/user/window-session-save.service
 link systemd/user/window-session-save.timer .config/systemd/user/window-session-save.timer
 link systemd/user/window-session-sentinel.service .config/systemd/user/window-session-sentinel.service
+link systemd/user/wezterm-mux-server.service .config/systemd/user/wezterm-mux-server.service
 
 link autostart/window-session-restore.desktop .config/autostart/window-session-restore.desktop
+link autostart/wezterm.desktop .config/autostart/wezterm.desktop
 
 mkdir -p "$HOME/.tmux/logs" "$HOME/.local/share/window-session"
 
@@ -43,3 +54,11 @@ echo "  systemctl --user daemon-reload"
 echo "  systemctl --user enable --now tmux-resurrect-save.timer"
 echo "  systemctl --user enable --now window-session-save.timer"
 echo "  systemctl --user enable --now window-session-sentinel.service"
+echo "  systemctl --user enable --now wezterm-mux-server.service"
+echo
+echo "WezTerm itself isn't installed by this script - add the official apt"
+echo "repo first (see https://wezterm.org/install/linux.html), or 'apt"
+echo "install tilix' for Tilix. To make WezTerm the default terminal:"
+echo "  sudo update-alternatives --set x-terminal-emulator /usr/bin/open-wezterm-here"
+echo "  gsettings set org.cinnamon.desktop.default-applications.terminal exec 'wezterm'"
+echo "  gsettings set org.cinnamon.desktop.default-applications.terminal exec-arg '--'"

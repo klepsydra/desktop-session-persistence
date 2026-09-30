@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=WezTerm
+Comment=Opens a WezTerm window attached to the persistent mux session at login
+Exec=/bin/sh -c 'sleep 10 && wezterm'
+X-GNOME-Autostart-Delay=5
+OnlyShowIn=X-Cinnamon;

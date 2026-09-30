@@ -20,6 +20,12 @@ window-session/
   window-session-restore.sh -> ~/.local/bin/window-session-restore.sh
   gterm-tabs-save.sh        -> ~/.local/bin/gterm-tabs-save.sh
   session-browser.sh        -> ~/.local/bin/session-browser.sh
+wezterm/
+  wezterm.lua                  -> ~/.config/wezterm/wezterm.lua
+  wezterm-tabs-save.sh         -> ~/.local/bin/wezterm-tabs-save.sh
+  wezterm-tabs-restore.sh      -> ~/.local/bin/wezterm-tabs-restore.sh
+tilix/
+  tilix-tabs-save.sh           -> ~/.local/bin/tilix-tabs-save.sh
 systemd/user/*               -> ~/.config/systemd/user/
 autostart/*.desktop          -> ~/.config/autostart/
 install.sh                   symlinks everything above into place
@@ -93,6 +99,81 @@ Real limits of this, unlike the tmux track:
 - This does not implement real hibernate-to-disk (freezing exact RAM
   state). That needs a real on-disk swapfile sized to RAM, a `resume=`
   kernel parameter, and a GRUB/initramfs update — out of scope here.
+
+## WezTerm (default terminal) + Tilix
+
+Installed from WezTerm's official APT repo (`apt.fury.io/wez`) and
+Ubuntu's `tilix` package. **WezTerm is now the system default terminal**
+(`x-terminal-emulator` alternative and
+`org.cinnamon.desktop.default-applications.terminal` both point at it).
+
+### WezTerm: a real persistent mux daemon
+
+`wezterm-mux-server.service` (systemd user unit) runs WezTerm's
+multiplexer daemon continuously, independent of any GUI window —
+`~/.config/wezterm/wezterm.lua` defines a unix domain named `mux` with
+`connect_automatically = true` and sets it as the default GUI startup
+target, so a plain `wezterm` always attaches to this same persistent
+daemon rather than a throwaway local session. **This part is solid**:
+closing the GUI window, or the GUI crashing, does not touch the panes or
+their shells - they keep running in the daemon, scrollback (100k lines)
+and all, until you reattach. An autostart entry opens a `wezterm` window
+at login.
+
+`wezterm-tabs-save.sh` snapshots every live pane (tty, cwd, original
+window/tab grouping) via WezTerm's own `wezterm cli list --format json` -
+no `/proc` scraping needed here, unlike gnome-terminal/Tilix, since
+WezTerm exposes this natively. Runs on the same save cadence as
+everything else.
+
+**Automatic restore-on-reboot is intentionally NOT wired up.** After
+extensive testing - headless, with a GUI attached first, with generous
+delays between calls, on both the ~2.5-year-old "stable" apt package and
+the actively-updated `wezterm-nightly` (switched to nightly specifically
+to chase this down) - `wezterm cli spawn --new-window` reliably breaks
+the second time it's called in a domain with no GUI actively rendering
+it: later calls return stale/duplicate pane ids, and
+`wezterm-mux-server`'s own log shows a genuine internal panic
+(`wezterm-client/src/domain.rs:624`, survived by the server process but
+leaving the request half-finished). With a GUI already attached it's
+worse - one run sprayed out a dozen empty phantom windows in seconds.
+This is a real upstream bug, not a scripting problem, and automating
+something that can spray windows during an unattended login is worse
+than doing nothing.
+
+What's shipped instead: `wezterm-tabs-restore.sh` only ever issues **one**
+spawn call (the most-recently-active saved pane, at its cwd), and is not
+run automatically - it's there to invoke manually
+(`wezterm-tabs-restore.sh`) if you want to try recovering your last
+directory after a reboot and are fine with it occasionally failing
+harmlessly (a `[FAIL]` line, no window sprayed) rather than trying it in
+an unattended context. Everyday persistence (surviving a GUI close
+without a reboot) needs none of this - the daemon already has it covered.
+
+### Tilix: cwd only, same approach as gnome-terminal
+
+Tilix is also a single shared process across every window with no
+introspection API, so `tilix-tabs-save.sh` uses the identical `/proc`-walk
+as `gterm-tabs-save.sh`. Unlike gnome-terminal, Tilix's CLI has no way to
+chain multiple tabs into one `--working-directory` invocation, so
+`window-session-restore.sh` gives each restored Tilix window at most one
+saved tab's cwd (matched in order) instead of consolidating them - more
+separate windows, but each with a real directory instead of a blank one.
+
+### The tty-number question
+
+Whether a reopened terminal lands back on the exact same `/dev/pts/N` is
+inherently probabilistic, never guaranteed: devpts allocates the lowest
+currently-free number, so if nothing else opens a pty in between, the
+same order of reopening tends to reclaim the same numbers (verified
+directly: closing a pane on pts/14 and immediately opening a new one
+did reclaim pts/14, repeatedly, across multiple tests) - but *anything*
+else that opens a pty first (another terminal, an SSH session, a
+different app) shifts the numbering, and there's no way to reserve a
+specific number in advance. Every save script here sorts its recorded
+tabs/panes by ascending original tty number for exactly this reason - so
+that wherever restore *is* used, replaying in that same order gives it
+the best available chance.
 
 ## Viewing and managing what's saved
 

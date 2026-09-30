@@ -75,3 +75,11 @@ ls -t "$HIST_DIR"/windows_*.json 2>/dev/null | tail -n +21 | xargs -r rm --
 # Best-effort gnome-terminal tab/cwd capture (separate script - see there
 # for what it can/can't recover).
 "$HOME/.local/bin/gterm-tabs-save.sh" || true
+
+# wezterm pane/cwd capture (separate script - see there for what it can/
+# can't recover, and why restore is manual-only rather than automatic).
+"$HOME/.local/bin/wezterm-tabs-save.sh" || true
+
+# Tilix tab/cwd capture (separate script - proc-based, same approach as
+# gnome-terminal since Tilix has no equivalent to wezterm's `cli list`).
+"$HOME/.local/bin/tilix-tabs-save.sh" || true
