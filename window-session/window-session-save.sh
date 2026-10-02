@@ -4,6 +4,7 @@
 set -euo pipefail
 export DISPLAY="${DISPLAY:-:0}"
 
+if "$HOME/.local/bin/dsp-enabled" windows; then
 OUT="$HOME/.local/share/window-session/windows.json"
 TMP="$OUT.tmp.$$"
 
@@ -75,6 +76,7 @@ mv "$TMP" "$OUT"
 # Keep a rotating history of snapshots (last 20, skipping ones identical to
 # the prior save) so they're browsable later.
 "$HOME/.local/bin/history-snapshot.sh" "$OUT" "$HOME/.local/share/window-session/history" windows json
+fi
 
 # Best-effort gnome-terminal tab/cwd capture (separate script - see there
 # for what it can/can't recover).

@@ -5,6 +5,10 @@
 LOGDIR="$HOME/.tmux/logs"
 LINES=51000
 
+# Off unless switched on in session-browser.sh -> settings. It types a
+# command into each restored pane, which lands in shell history.
+[ -f "$HOME/.config/desktop-session-persistence/replay-scrollback.enabled" ] || exit 0
+
 tmux list-panes -a -F '#{session_name} #{window_index} #{pane_index} #{pane_id}' | while read -r sess win pane pane_id; do
   log="$LOGDIR/${sess}_${win}-${pane}.log"
   if [ -f "$log" ]; then

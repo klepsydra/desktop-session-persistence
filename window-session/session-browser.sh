@@ -526,10 +526,99 @@ browse_logs() {
   done
 }
 
+# ---------- settings ----------
+
+SETTINGS_DIR="$HOME/.config/desktop-session-persistence"
+export SETTINGS_DIR
+
+# Every feature is ON unless a marker exists in $SETTINGS_DIR/disabled/ -
+# except scrollback replay, which is OFF unless its .enabled flag exists.
+setting_state() {  # -> on | off
+  case "$1" in
+    replay) [ -f "$SETTINGS_DIR/replay-scrollback.enabled" ] && echo on || echo off ;;
+    *)      [ -e "$SETTINGS_DIR/disabled/$1" ] && echo off || echo on ;;
+  esac
+}
+export -f setting_state
+
+apply_logs_live() {  # make the logs toggle take effect on panes that already exist
+  command -v tmux >/dev/null && tmux list-panes -a -F '#{pane_id} #{session_name}_#{window_index}-#{pane_index}' 2>/dev/null \
+    | while read -r pane name; do
+        if [ "$(setting_state logs)" = on ]; then
+          "$HOME/.tmux/scripts/pane-log.sh" "$pane" "$name"
+        else
+          tmux pipe-pane -t "$pane"   # no command = close the pipe
+        fi
+      done
+}
+export -f apply_logs_live
+
+toggle_setting() {
+  case "$1" in
+    replay)
+      if [ -f "$SETTINGS_DIR/replay-scrollback.enabled" ]; then
+        rm -f "$SETTINGS_DIR/replay-scrollback.enabled"
+      else
+        mkdir -p "$SETTINGS_DIR"; : > "$SETTINGS_DIR/replay-scrollback.enabled"
+      fi ;;
+    *)
+      mkdir -p "$SETTINGS_DIR/disabled"
+      if [ -e "$SETTINGS_DIR/disabled/$1" ]; then rm -f "$SETTINGS_DIR/disabled/$1"
+      else : > "$SETTINGS_DIR/disabled/$1"; fi
+      [ "$1" = logs ] && apply_logs_live ;;
+  esac
+}
+export -f toggle_setting
+
+list_settings() {
+  local key label
+  while IFS='|' read -r key label; do
+    printf '[%-3s]  %s\t%s\n' "$(setting_state "$key")" "$label" "$key"
+  done <<'ROWS'
+tmux|tmux/byobu layout snapshots - auto-save + restore on tmux start
+windows|window-position snapshots - auto-save, login restore, gnome-terminal tabs
+wezterm|wezterm panes - auto-save
+tilix|tilix tabs - auto-save
+logs|scrollback logs - continuous per-pane logging
+replay|replay scrollback into restored tmux panes (types into pane, lands in history)
+ROWS
+}
+export -f list_settings
+
+setting_help() {
+  case "$1" in
+    tmux) echo "Periodic tmux-resurrect saves (every 15 min) and restoring the last layout"
+          echo "when a tmux server starts. Restore-on-start is read when tmux launches, so"
+          echo "that half applies from the next tmux server start." ;;
+    windows) echo "Saving window positions (timer + at logout), restoring them at login, and"
+             echo "capturing gnome-terminal tabs. Takes effect at the next scheduled save." ;;
+    wezterm) echo "Periodic snapshots of wezterm panes. (Restore is disabled regardless -"
+             echo "see the README.) Takes effect at the next scheduled save." ;;
+    tilix)   echo "Periodic snapshots of tilix tabs. Takes effect at the next scheduled save." ;;
+    logs)    echo "Appends every tmux pane's output to ~/.tmux/logs. Switching it off closes"
+             echo "the pipe on all existing panes right now and stops new panes from logging;"
+             echo "switching it back on restarts logging on all existing panes." ;;
+    replay)  echo "After a tmux restore, types a clear; tail -n 51000 <log> command into each"
+             echo "pane to show its old output again."
+             echo
+             echo "OFF by default: the typed command lands in shell history, and it does not"
+             echo "survive a reboot in practice." ;;
+  esac
+}
+export -f setting_help
+
+browse_settings() {
+  list_settings | fzf --delimiter='\t' --with-nth=1 \
+    --header 'settings  (enter:toggle on/off  esc:back)' \
+    --preview 'setting_help {2}' --preview-window=down:5 \
+    --bind 'enter:execute-silent(toggle_setting {2})+reload(list_settings)' \
+    "${FZF_NAV[@]}" > /dev/null
+}
+
 # ---------- top level ----------
 
 main_menu() {
-  printf 'tmux/byobu layout snapshots\nwindow-position snapshots\nwezterm panes\ntilix tabs\nscrollback logs\n' \
+  printf 'tmux/byobu layout snapshots\nwindow-position snapshots\nwezterm panes\ntilix tabs\nscrollback logs\nsettings\n' \
     | fzf --header 'view/manage saved sessions  (enter:choose  tab/shift-tab:move  esc:quit)' \
       "${FZF_NAV[@]}"
 }
@@ -540,6 +629,7 @@ case "${1:-}" in
   wezterm) browse_wezterm ;;
   tilix) browse_tilix ;;
   logs) browse_logs ;;
+  settings) browse_settings ;;
   *)
     while true; do
       choice=$(main_menu)
@@ -549,6 +639,7 @@ case "${1:-}" in
         "wezterm panes") browse_wezterm ;;
         "tilix tabs") browse_tilix ;;
         "scrollback logs") browse_logs ;;
+        "settings") browse_settings ;;
         *) break ;;
       esac
     done

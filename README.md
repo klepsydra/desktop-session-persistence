@@ -47,9 +47,13 @@ install.sh                   symlinks everything above into place
   memory-only and can't survive a reboot, full stop. What actually
   survives: `tmux.conf`'s hooks pipe every pane's raw output continuously
   to `~/.tmux/logs/<session>_<window>-<pane>.log` for as long as the pane
-  lives. After a resurrect restore, `replay-logs.sh` tails the last 51000
-  lines of each pane's log back into the newly-relaunched (otherwise
-  empty) pane, so recent history is visually there again. The full
+  lives. Optionally (**off by default**), after a resurrect restore
+  `replay-logs.sh` tails the last 51000 lines of each pane's log back
+  into the newly-relaunched pane. It does this by typing a `clear; tail
+  ...` command into the pane, which lands in shell history, so it's a
+  toggle: `session-browser.sh` -> settings -> "replay scrollback into
+  restored tmux panes" (a flag file at
+  `~/.config/desktop-session-persistence/replay-scrollback.enabled`). The full
   transcript is always on disk in `~/.tmux/logs/` regardless, searchable
   with `grep`/`less` (contains raw ANSI escapes from the original output).
 
@@ -256,6 +260,28 @@ keeps a rotating history of its last 20 snapshots in
 `~/.local/share/window-session/history/` so there's something to browse
 (the "latest" `windows.json` used by `window-session-restore.sh` is
 unaffected).
+
+### Settings: switching each category on or off
+
+`session-browser.sh` -> **settings** (or `session-browser.sh settings`) has
+one row per category; Enter flips it in place. Everything is **on** by
+default except scrollback replay, which is off.
+
+| row | what "off" stops |
+|---|---|
+| tmux/byobu layout snapshots | the 15-min resurrect saves, and restore-on-tmux-start (read when tmux launches, so that half applies from the next server start) |
+| window-position snapshots | window saves (timer + logout), the login-time restore, and gnome-terminal tab capture |
+| wezterm panes | wezterm pane snapshots |
+| tilix tabs | tilix tab snapshots |
+| scrollback logs | per-pane logging - closes the pipe on every existing pane immediately, new panes don't start one; turning it back on restarts logging everywhere |
+| replay scrollback | (off by default) typing `clear; tail ...` into restored panes |
+
+Mechanism: a marker file at
+`~/.config/desktop-session-persistence/disabled/<name>` means "off"
+(`tmux`, `windows`, `wezterm`, `tilix`, `logs`); `dsp-enabled <name>` is
+the one-line check each script runs first. Turning a category off stops
+new captures only - existing snapshots/logs stay on disk and stay
+browsable and deletable.
 
 ### History doesn't fill up with duplicates
 

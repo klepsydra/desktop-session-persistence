@@ -1,0 +1,6 @@
+#!/bin/bash
+# Exit 0 if the named feature is enabled, 1 if switched off in
+# session-browser.sh -> settings. Features are on unless a marker exists at
+# ~/.config/desktop-session-persistence/disabled/<name>.
+# Names: tmux, windows, wezterm, tilix, logs
+[ ! -e "$HOME/.config/desktop-session-persistence/disabled/$1" ]

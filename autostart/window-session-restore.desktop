@@ -2,6 +2,6 @@
 Type=Application
 Name=Window Session Restore
 Comment=Reopens apps at their last window position after login
-Exec=/bin/sh -c 'sleep 8 && "$HOME/.local/bin/window-session-restore.sh"'
+Exec=/bin/sh -c '"$HOME/.local/bin/dsp-enabled" windows && sleep 8 && "$HOME/.local/bin/window-session-restore.sh"'
 X-GNOME-Autostart-Delay=5
 OnlyShowIn=X-Cinnamon;
