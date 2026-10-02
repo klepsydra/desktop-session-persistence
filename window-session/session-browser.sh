@@ -526,10 +526,38 @@ browse_logs() {
   done
 }
 
+# ---------- settings ----------
+
+SETTINGS_DIR="$HOME/.config/desktop-session-persistence"
+REPLAY_FLAG="$SETTINGS_DIR/replay-scrollback.enabled"
+
+replay_state() { [ -f "$REPLAY_FLAG" ] && echo on || echo off; }
+
+toggle_replay() {
+  if [ -f "$REPLAY_FLAG" ]; then
+    rm -f "$REPLAY_FLAG"
+  else
+    mkdir -p "$SETTINGS_DIR"
+    : > "$REPLAY_FLAG"
+  fi
+}
+
+browse_settings() {
+  while true; do
+    local sel
+    sel=$(printf '[%s]  replay scrollback into restored tmux panes\n' "$(replay_state)" \
+      | fzf --header 'settings  (enter:toggle  esc:back)' \
+        --preview 'printf "After a tmux restore, types a clear; tail -n 51000 <log> command into\neach pane to show its old output again.\n\nOFF by default: the typed command lands in shell history, and\nit does not survive a reboot in practice.\n"' \
+        --preview-window=down:6 "${FZF_NAV[@]}")
+    [ -n "$sel" ] || return
+    toggle_replay
+  done
+}
+
 # ---------- top level ----------
 
 main_menu() {
-  printf 'tmux/byobu layout snapshots\nwindow-position snapshots\nwezterm panes\ntilix tabs\nscrollback logs\n' \
+  printf 'tmux/byobu layout snapshots\nwindow-position snapshots\nwezterm panes\ntilix tabs\nscrollback logs\nsettings\n' \
     | fzf --header 'view/manage saved sessions  (enter:choose  tab/shift-tab:move  esc:quit)' \
       "${FZF_NAV[@]}"
 }
@@ -540,6 +568,7 @@ case "${1:-}" in
   wezterm) browse_wezterm ;;
   tilix) browse_tilix ;;
   logs) browse_logs ;;
+  settings) browse_settings ;;
   *)
     while true; do
       choice=$(main_menu)
@@ -549,6 +578,7 @@ case "${1:-}" in
         "wezterm panes") browse_wezterm ;;
         "tilix tabs") browse_tilix ;;
         "scrollback logs") browse_logs ;;
+        "settings") browse_settings ;;
         *) break ;;
       esac
     done

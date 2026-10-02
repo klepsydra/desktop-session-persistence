@@ -47,9 +47,13 @@ install.sh                   symlinks everything above into place
   memory-only and can't survive a reboot, full stop. What actually
   survives: `tmux.conf`'s hooks pipe every pane's raw output continuously
   to `~/.tmux/logs/<session>_<window>-<pane>.log` for as long as the pane
-  lives. After a resurrect restore, `replay-logs.sh` tails the last 51000
-  lines of each pane's log back into the newly-relaunched (otherwise
-  empty) pane, so recent history is visually there again. The full
+  lives. Optionally (**off by default**), after a resurrect restore
+  `replay-logs.sh` tails the last 51000 lines of each pane's log back
+  into the newly-relaunched pane. It does this by typing a `clear; tail
+  ...` command into the pane, which lands in shell history, so it's a
+  toggle: `session-browser.sh` -> settings -> "replay scrollback into
+  restored tmux panes" (a flag file at
+  `~/.config/desktop-session-persistence/replay-scrollback.enabled`). The full
   transcript is always on disk in `~/.tmux/logs/` regardless, searchable
   with `grep`/`less` (contains raw ANSI escapes from the original output).
 
