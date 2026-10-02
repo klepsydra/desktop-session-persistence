@@ -4,6 +4,7 @@
 # save it just produced is byte-identical to the one before it, remove the
 # new (redundant) file and point 'last' back at the surviving older one.
 set -uo pipefail
+"$HOME/.local/bin/dsp-enabled" tmux || exit 0
 
 RESURRECT_DIR="$HOME/.local/share/tmux/resurrect"
 SAVE_SCRIPT="$HOME/.tmux/plugins/tmux-resurrect/scripts/save.sh"

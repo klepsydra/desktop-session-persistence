@@ -261,6 +261,28 @@ keeps a rotating history of its last 20 snapshots in
 (the "latest" `windows.json` used by `window-session-restore.sh` is
 unaffected).
 
+### Settings: switching each category on or off
+
+`session-browser.sh` -> **settings** (or `session-browser.sh settings`) has
+one row per category; Enter flips it in place. Everything is **on** by
+default except scrollback replay, which is off.
+
+| row | what "off" stops |
+|---|---|
+| tmux/byobu layout snapshots | the 15-min resurrect saves, and restore-on-tmux-start (read when tmux launches, so that half applies from the next server start) |
+| window-position snapshots | window saves (timer + logout), the login-time restore, and gnome-terminal tab capture |
+| wezterm panes | wezterm pane snapshots |
+| tilix tabs | tilix tab snapshots |
+| scrollback logs | per-pane logging - closes the pipe on every existing pane immediately, new panes don't start one; turning it back on restarts logging everywhere |
+| replay scrollback | (off by default) typing `clear; tail ...` into restored panes |
+
+Mechanism: a marker file at
+`~/.config/desktop-session-persistence/disabled/<name>` means "off"
+(`tmux`, `windows`, `wezterm`, `tilix`, `logs`); `dsp-enabled <name>` is
+the one-line check each script runs first. Turning a category off stops
+new captures only - existing snapshots/logs stay on disk and stay
+browsable and deletable.
+
 ### History doesn't fill up with duplicates
 
 All four of the custom save scripts (window-position, gnome-terminal,

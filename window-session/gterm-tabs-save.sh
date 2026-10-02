@@ -9,6 +9,7 @@
 # restore they're all consolidated into one new window. Only cwd is
 # recovered, not scrollback or whatever foreground command was running.
 set -euo pipefail
+"$HOME/.local/bin/dsp-enabled" windows || exit 0
 export DISPLAY="${DISPLAY:-:0}"
 
 OUT_DIR="$HOME/.local/share/window-session"

@@ -4,6 +4,7 @@
 # unlike the gnome-terminal/tilix tracks, because wezterm's mux server
 # exposes this natively. Paired with wezterm-tabs-restore.sh.
 set -euo pipefail
+"$HOME/.local/bin/dsp-enabled" wezterm || exit 0
 export DISPLAY="${DISPLAY:-:0}"
 
 OUT_DIR="$HOME/.local/share/window-session"
