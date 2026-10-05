@@ -1,0 +1,25 @@
+/* Visible window borders, for every GTK3 app and for the frames Cinnamon
+ * (Muffin) draws around everything else.
+ *
+ * The Mint GTK theme gives window frames only a 1px near-black ring
+ *   (.ssd decoration { box-shadow: 0 0 0 1px rgba(0,0,0,.65) })
+ * which disappears on a dark desktop. These rules replace the ring with 2px:
+ * blue while the window is focused, grey when it isn't. Maximized/tiled/
+ * fullscreen windows and popups are left alone.
+ * To change the color, edit the two hex values; delete this file to undo.
+ */
+.ssd decoration,
+.csd decoration {
+  box-shadow: 0 0 0 2px #5b8cff, 0 8px 8px 0 rgba(0, 0, 0, 0.35);
+}
+.ssd decoration:backdrop,
+.csd decoration:backdrop {
+  box-shadow: 0 0 0 2px #7a7a7a, 0 5px 5px 0 rgba(0, 0, 0, 0.35);
+}
+.ssd decoration.maximized,
+.maximized decoration,
+.fullscreen decoration,
+.tiled decoration,
+.popup decoration {
+  box-shadow: none;
+}
