@@ -68,10 +68,15 @@ install.sh                   symlinks everything above into place
   graphical-session.target` sentinel unit — the standard systemd pattern
   for "run something when the graphical session ends").
 - `window-session-restore.sh` runs at login (`autostart/*.desktop`, after
-  an 8s settle delay). For each saved window class with fewer windows
-  currently open than were saved, it relaunches the recorded command,
-  polls for the new window, then repositions/moves it to its saved
-  workspace with `wmctrl`.
+  an 8s settle delay) and **only relaunches terminals** (gnome-terminal,
+  tilix): for each with fewer windows open than were saved, it relaunches
+  and repositions with `wmctrl`. It deliberately skips everything else.
+  Firefox, Geany, etc. restore their own windows at login and wezterm has
+  its own autostart entry; relaunching them here raced with that (startup
+  is slower than the 8s wait), made duplicate windows, and - because those
+  got saved - grew every login (Geany 1->2->4, Firefox 4->7, wezterm
+  1->3->5->6 in the logged history). `--all-apps` lifts the restriction;
+  `session-browser.sh`'s explicit "Restore" uses it.
 
 ### gnome-terminal tabs (best-effort, separate from tmux)
 
@@ -111,19 +116,21 @@ Ubuntu's `tilix` package. **WezTerm is now the system default terminal**
 (`x-terminal-emulator` alternative and
 `org.cinnamon.desktop.default-applications.terminal` both point at it).
 
-### WezTerm: a real persistent mux daemon
+### WezTerm: plain local windows (the mux daemon is opt-in)
 
-`wezterm-mux-server.service` (systemd user unit) runs WezTerm's
-multiplexer daemon continuously, independent of any GUI window —
-`~/.config/wezterm/wezterm.lua` defines a unix domain named `mux` with
-`connect_automatically = true` and sets it as the default GUI startup
-target, so a plain `wezterm` always attaches to this same persistent
-daemon rather than a throwaway local session. **This part is solid**:
-closing the GUI window, or the GUI crashing, does not touch the panes or
-their shells - they keep running in the daemon, scrollback (100k lines)
-and all, until you reattach. An autostart entry opens a `wezterm` window
-at login. The service has no `Restart=` directive, deliberately - see
-below for why.
+`~/.config/wezterm/wezterm.lua` is plain: every `wezterm` launch opens a
+window with its own shell and its own `/dev/pts/N`; persistence is tmux's
+job. The earlier design attached every window to a shared
+`wezterm-mux-server` (systemd user service). That was reproduced on a
+private server to mirror **one** pane into every window - three windows,
+one tty - which collides with per-tty tmux session names, and wezterm
+auto-started stray extra daemons on the same socket that outlived the
+session. `wezterm-mux-server.service` is still in the repo but is **not
+enabled** by default; to use it, define a unix domain with
+`no_serve_automatically = true`, enable the unit, and reattach with
+`wezterm connect <name>`. The notes below on snapshots and the restore
+crash describe that daemon mode; `wezterm-tabs-save.sh` is a no-op while
+the daemon isn't running.
 
 `wezterm-tabs-save.sh` snapshots every live pane (tty, cwd, original
 window/tab grouping) via WezTerm's own `wezterm cli list --format json` -

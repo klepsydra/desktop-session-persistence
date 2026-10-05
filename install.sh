@@ -59,7 +59,7 @@ echo "  systemctl --user daemon-reload"
 echo "  systemctl --user enable --now tmux-resurrect-save.timer"
 echo "  systemctl --user enable --now window-session-save.timer"
 echo "  systemctl --user enable --now window-session-sentinel.service"
-echo "  systemctl --user enable --now wezterm-mux-server.service"
+echo "  # optional, off by default (see README): systemctl --user enable --now wezterm-mux-server.service"
 echo
 echo "WezTerm itself isn't installed by this script - add the official apt"
 echo "repo first (see https://wezterm.org/install/linux.html), or 'apt"
