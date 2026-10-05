@@ -147,6 +147,15 @@ a private daemon:
   Ctrl+Shift+N another, and after closing every window `wezterm-session`
   brought them all back with their tab counts.
 
+**Window border.** Cinnamon's Mint-Y window theme draws no side or bottom
+border for any app (`_NET_FRAME_EXTENTS` is `0,0,28,0` for Geany too), so a
+dark terminal blends into a dark desktop. `wezterm.lua` therefore draws its
+own 2px border (`window_decorations = 'INTEGRATED_BUTTONS|RESIZE'` plus
+`window_frame` border colors), which also replaces Cinnamon's title bar with
+wezterm's tab bar and min/max/close buttons. Change `border` for another
+color, or delete that block to get Cinnamon's title bar back. The login
+autostart now opens `wezterm-session` instead of a plain window.
+
 `no_serve_automatically = true` on the domain stops a GUI from starting its
 own stray daemon on the same socket (an orphan from Oct 2 did exactly that).
 The daemon only lives for the login session - it doesn't survive a logout or
