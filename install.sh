@@ -38,6 +38,9 @@ chmod +x "$HOME/.local/bin/window-session-save.sh" "$HOME/.local/bin/window-sess
 chmod +x "$HOME/.tmux/scripts/replay-logs.sh" "$HOME/.tmux/scripts/resurrect-save-dedup.sh" "$HOME/.tmux/scripts/pane-log.sh"
 
 link wezterm/wezterm.lua .config/wezterm/wezterm.lua
+link wezterm/wezterm-session .local/bin/wezterm-session
+link wezterm/wezterm-session.desktop .local/share/applications/wezterm-session.desktop
+chmod +x "$HOME/.local/bin/wezterm-session"
 
 link systemd/user/tmux-resurrect-save.service .config/systemd/user/tmux-resurrect-save.service
 link systemd/user/tmux-resurrect-save.timer .config/systemd/user/tmux-resurrect-save.timer
@@ -59,7 +62,7 @@ echo "  systemctl --user daemon-reload"
 echo "  systemctl --user enable --now tmux-resurrect-save.timer"
 echo "  systemctl --user enable --now window-session-save.timer"
 echo "  systemctl --user enable --now window-session-sentinel.service"
-echo "  # optional, off by default (see README): systemctl --user enable --now wezterm-mux-server.service"
+echo "  systemctl --user enable --now wezterm-mux-server.service   # backs wezterm-session"
 echo
 echo "WezTerm itself isn't installed by this script - add the official apt"
 echo "repo first (see https://wezterm.org/install/linux.html), or 'apt"
