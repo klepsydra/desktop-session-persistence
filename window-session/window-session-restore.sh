@@ -3,16 +3,25 @@
 # their saved geometry/workspace. Skips any class that already has at least
 # as many open windows as were saved (treated as "already restored").
 #
-# Usage: window-session-restore.sh [--dry-run] [--only-class SUBSTRING]
+# By default (what the login autostart runs) this ONLY relaunches terminals.
+# Everything else - Firefox, Geany, wezterm, ... - restores its own windows
+# or is autostarted by the desktop, and relaunching it here raced with that
+# (startup is slower than our 8s wait) and produced duplicate windows that
+# then got saved and multiplied on every login. --all-apps lifts that
+# restriction for a deliberate manual restore.
+#
+# Usage: window-session-restore.sh [--dry-run] [--only-class SUBSTRING] [--all-apps]
 set -uo pipefail
 export DISPLAY="${DISPLAY:-:0}"
 
 DRY_RUN=0
 ONLY_CLASS=""
+ALL_APPS=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
     --only-class) ONLY_CLASS="$2"; shift ;;
+    --all-apps) ALL_APPS=1 ;;
   esac
   shift
 done
@@ -20,7 +29,7 @@ done
 IN="$HOME/.local/share/window-session/windows.json"
 [ -f "$IN" ] || { echo "no saved session at $IN"; exit 0; }
 
-export DRY_RUN ONLY_CLASS
+export DRY_RUN ONLY_CLASS ALL_APPS
 
 python3 - "$IN" <<'PYEOF'
 import json, os, re, subprocess, sys, time
@@ -28,6 +37,9 @@ import json, os, re, subprocess, sys, time
 in_path = sys.argv[1]
 dry_run = os.environ.get('DRY_RUN') == '1'
 only_class = os.environ.get('ONLY_CLASS', '')
+all_apps = os.environ.get('ALL_APPS') == '1'
+# Classes that nothing else brings back after login.
+RELAUNCH_RE = re.compile(r'^(gnome-terminal-server|tilix)')
 
 with open(in_path) as f:
     saved = json.load(f)['windows']
@@ -112,6 +124,9 @@ for w in saved:
     by_class.setdefault(w['class'], []).append(w)
 
 for cls, wins in by_class.items():
+    if not all_apps and not RELAUNCH_RE.match(cls):
+        print(f"[skip] {cls}: restores itself / autostarted - not relaunched (use --all-apps)")
+        continue
     existing = [w for w in current_windows() if w['class'] == cls]
     missing = len(wins) - len(existing)
     if missing <= 0:

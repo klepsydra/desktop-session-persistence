@@ -219,7 +219,7 @@ restore_windows() {
   echo " times as was saved, then moves it to its saved spot; already-open"
   echo " windows are left alone)"
   cp "$f" "$WINSESS_LATEST"
-  bash "$WINSESS_RESTORE"
+  bash "$WINSESS_RESTORE" --all-apps
   pause
 }
 export -f restore_windows
@@ -394,7 +394,7 @@ restore_tilix() {
   echo " way gnome-terminal's --tab flag can)"
   confirm "Proceed?" || { echo cancelled; sleep 1; return; }
   cp "$f" "$TILIX_LATEST"
-  bash "$WINSESS_RESTORE" --only-class tilix
+  bash "$WINSESS_RESTORE" --only-class tilix --all-apps
   pause
 }
 export -f restore_tilix
