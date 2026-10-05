@@ -1,0 +1,18 @@
+#!/bin/bash
+# Open the persistent wezterm workspace, or raise it if it's already open.
+# Panes live in wezterm-mux-server, so closing this window loses nothing;
+# running this again reattaches every window/tab that's still in the daemon.
+# (A second window from here would only mirror the same panes - make new
+# tabs/windows inside it with Ctrl+Shift+T / Ctrl+Shift+N.)
+export DISPLAY="${DISPLAY:-:0}"
+CLASS=wezterm-session
+
+if wmctrl -lx 2>/dev/null | grep -q " $CLASS\.$CLASS "; then
+  exec wmctrl -x -a "$CLASS.$CLASS"
+fi
+
+systemctl --user is-active --quiet wezterm-mux-server.service \
+  || systemctl --user start wezterm-mux-server.service
+for _ in $(seq 20); do [ -S /run/user/$UID/wezterm/sock ] && break; sleep 0.25; done
+
+exec wezterm connect mux --class "$CLASS"

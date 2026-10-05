@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=WezTerm (persistent session)
+Comment=Terminal workspace that survives closing the window
+Exec=wezterm-session
+Icon=org.wezfurlong.wezterm
+Terminal=false
+Categories=System;TerminalEmulator;
+StartupWMClass=wezterm-session

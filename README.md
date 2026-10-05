@@ -116,21 +116,42 @@ Ubuntu's `tilix` package. **WezTerm is now the system default terminal**
 (`x-terminal-emulator` alternative and
 `org.cinnamon.desktop.default-applications.terminal` both point at it).
 
-### WezTerm: plain local windows (the mux daemon is opt-in)
+### WezTerm: plain windows, plus a persistent workspace
 
-`~/.config/wezterm/wezterm.lua` is plain: every `wezterm` launch opens a
-window with its own shell and its own `/dev/pts/N`; persistence is tmux's
-job. The earlier design attached every window to a shared
-`wezterm-mux-server` (systemd user service). That was reproduced on a
-private server to mirror **one** pane into every window - three windows,
-one tty - which collides with per-tty tmux session names, and wezterm
-auto-started stray extra daemons on the same socket that outlived the
-session. `wezterm-mux-server.service` is still in the repo but is **not
-enabled** by default; to use it, define a unix domain with
-`no_serve_automatically = true`, enable the unit, and reattach with
-`wezterm connect <name>`. The notes below on snapshots and the restore
-crash describe that daemon mode; `wezterm-tabs-save.sh` is a no-op while
-the daemon isn't running.
+Two modes, on purpose:
+
+- **`wezterm`** - plain local windows. Every launch is its own shell on its
+  own `/dev/pts/N` (what "open terminal here" and the autostart want). Use
+  tmux/byobu here for persistence, like the other terminals.
+- **`wezterm-session`** (also in the app menu as *WezTerm (persistent
+  session)*) - attaches to the `mux` domain served by
+  `wezterm-mux-server.service`. Panes live in the daemon, so closing the
+  window, or the GUI crashing, loses nothing: run it again and every
+  window/tab that's still in the daemon comes back. If it's already open it
+  just raises the window. Make new tabs/windows *inside* it with
+  Ctrl+Shift+T / Ctrl+Shift+N; they land in the daemon on their own ttys.
+  No tmux needed in there. (Your shell never auto-starts tmux; you run
+  `byobu`/`tmux` yourself, so there is nothing to disable.)
+
+Why the persistent mode isn't simply what plain `wezterm` does - tested on
+a private daemon:
+
+- Every *external* launch of a daemon-attached GUI (`wezterm start`,
+  `connect mux`, with or without `--new-tab`, a `gui-startup` hook) opens
+  another window mirroring the **same pane**: three launches, one
+  `/dev/pts/9`. That collides with per-tty tmux session names, and it's
+  what made every wezterm window show the same tty before.
+- Making a *new* pane from outside means `wezterm cli spawn`, which has
+  crashed the daemon (below).
+- Creating tabs/windows inside the GUI works: Ctrl+Shift+T gave a new tty,
+  Ctrl+Shift+N another, and after closing every window `wezterm-session`
+  brought them all back with their tab counts.
+
+`no_serve_automatically = true` on the domain stops a GUI from starting its
+own stray daemon on the same socket (an orphan from Oct 2 did exactly that).
+The daemon only lives for the login session - it doesn't survive a logout or
+reboot - so this protects against closed windows and GUI crashes, not those.
+The service has no `Restart=`, deliberately (see below).
 
 `wezterm-tabs-save.sh` snapshots every live pane (tty, cwd, original
 window/tab grouping) via WezTerm's own `wezterm cli list --format json` -
