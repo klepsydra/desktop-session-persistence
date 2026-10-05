@@ -147,15 +147,6 @@ a private daemon:
   Ctrl+Shift+N another, and after closing every window `wezterm-session`
   brought them all back with their tab counts.
 
-**Window border.** Cinnamon's Mint-Y window theme draws no side or bottom
-border for any app (`_NET_FRAME_EXTENTS` is `0,0,28,0` for Geany too), so a
-dark terminal blends into a dark desktop. `wezterm.lua` therefore draws its
-own 2px border (`window_decorations = 'INTEGRATED_BUTTONS|RESIZE'` plus
-`window_frame` border colors), which also replaces Cinnamon's title bar with
-wezterm's tab bar and min/max/close buttons. Change `border` for another
-color, or delete that block to get Cinnamon's title bar back. The login
-autostart now opens `wezterm-session` instead of a plain window.
-
 `no_serve_automatically = true` on the domain stops a GUI from starting its
 own stray daemon on the same socket (an orphan from Oct 2 did exactly that).
 The daemon only lives for the login session - it doesn't survive a logout or
@@ -363,6 +354,27 @@ Enter required (`read -n 1`); the alternate-screen switch itself is
 inherent to how fzf's `execute()` works when it needs real interactive
 input, not something scriptable away without dropping the confirmation
 prompt entirely.
+
+## Window borders (global)
+
+Cinnamon's Mint-Y window theme gives every app a 1px near-black edge with a
+soft shadow, which disappears against a dark desktop. `themes/Mint-Y-Border`
+is a copy of Mint-Y's window-border theme (`metacity-1` only) with a 2px edge
+on the sides and bottom in fixed colors - blue (`#5b8cff`) when the window is
+focused, grey (`#7a7a7a`) when not - instead of the GTK theme's near-black.
+Maximized windows keep no border, like Mint-Y.
+
+```bash
+gsettings set org.cinnamon.desktop.wm.preferences theme 'Mint-Y-Border'   # on
+gsettings set org.cinnamon.desktop.wm.preferences theme 'Mint-Y'          # undo
+```
+
+It also shows up in Cinnamon Settings -> Themes -> Window borders. Change the
+colors in `metacity-1/metacity-theme-3.xml` (`C_wm_border`,
+`C_wm_border_unfocused`). (An earlier version drew the border inside wezterm
+only; that was dropped in favor of this.) Good test windows: `xcalc`,
+`xclock`, `xterm`, Geany, Nemo, gnome-terminal - apps whose frame Cinnamon
+draws; GTK client-side-decorated apps (GNOME Calculator) don't use it.
 
 ## Install on a fresh machine
 

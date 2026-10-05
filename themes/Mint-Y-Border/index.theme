@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Mint-Y-Border
+Comment=Mint-Y window borders with a visible 2px edge (copy of Mint-Y/metacity-1, border colors/width changed)
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Mint-Y
+MetacityTheme=Mint-Y-Border

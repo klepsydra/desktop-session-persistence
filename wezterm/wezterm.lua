@@ -26,19 +26,4 @@ config.unix_domains = {
 config.scrollback_lines = 100000
 config.enable_wayland = false
 
--- Visible window border. Cinnamon's Mint-Y window theme draws no side/bottom
--- border for ANY app (frame extents 0,0,28,0), which makes a dark terminal
--- vanish into a dark desktop. So wezterm draws its own and, with it, its own
--- tab bar + min/max/close buttons instead of Cinnamon's title bar. To go back
--- to the Cinnamon title bar, delete this block (or set
--- window_decorations = "TITLE | RESIZE").
-config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
-local border = '#5b8cff'
-config.window_frame = {
-  border_left_width = '2px', border_right_width = '2px',
-  border_top_height = '2px', border_bottom_height = '2px',
-  border_left_color = border, border_right_color = border,
-  border_top_color = border, border_bottom_color = border,
-}
-
 return config

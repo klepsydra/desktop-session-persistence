@@ -38,6 +38,7 @@ chmod +x "$HOME/.local/bin/window-session-save.sh" "$HOME/.local/bin/window-sess
 chmod +x "$HOME/.tmux/scripts/replay-logs.sh" "$HOME/.tmux/scripts/resurrect-save-dedup.sh" "$HOME/.tmux/scripts/pane-log.sh"
 
 link wezterm/wezterm.lua .config/wezterm/wezterm.lua
+link themes/Mint-Y-Border .themes/Mint-Y-Border
 link wezterm/wezterm-session .local/bin/wezterm-session
 link wezterm/wezterm-session.desktop .local/share/applications/wezterm-session.desktop
 chmod +x "$HOME/.local/bin/wezterm-session"
@@ -63,6 +64,9 @@ echo "  systemctl --user enable --now tmux-resurrect-save.timer"
 echo "  systemctl --user enable --now window-session-save.timer"
 echo "  systemctl --user enable --now window-session-sentinel.service"
 echo "  systemctl --user enable --now wezterm-mux-server.service   # backs wezterm-session"
+echo
+echo "Visible window borders (global): gsettings set org.cinnamon.desktop.wm.preferences theme 'Mint-Y-Border'"
+echo "  (undo: ... theme 'Mint-Y')"
 echo
 echo "WezTerm itself isn't installed by this script - add the official apt"
 echo "repo first (see https://wezterm.org/install/linux.html), or 'apt"
