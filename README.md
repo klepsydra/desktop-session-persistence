@@ -357,24 +357,24 @@ prompt entirely.
 
 ## Window borders (global)
 
-Cinnamon's Mint-Y window theme gives every app a 1px near-black edge with a
-soft shadow, which disappears against a dark desktop. `themes/Mint-Y-Border`
-is a copy of Mint-Y's window-border theme (`metacity-1` only) with a 2px edge
-on the sides and bottom in fixed colors - blue (`#5b8cff`) when the window is
-focused, grey (`#7a7a7a`) when not - instead of the GTK theme's near-black.
-Maximized windows keep no border, like Mint-Y.
+Cinnamon's Mint GTK theme gives every window a 1px near-black edge with a soft
+shadow, which disappears against a dark desktop. In this Muffin (6.6) the
+frame Cinnamon draws around non-GTK apps comes from the GTK theme's CSS -
+`.ssd decoration { box-shadow: 0 0 0 1px rgba(0,0,0,.65) }` - not from a
+Metacity `metacity-theme-3.xml`, so a custom Metacity window-border theme is
+silently ignored here (tried; a test theme with 8px red edges drew nothing).
 
-```bash
-gsettings set org.cinnamon.desktop.wm.preferences theme 'Mint-Y-Border'   # on
-gsettings set org.cinnamon.desktop.wm.preferences theme 'Mint-Y'          # undo
-```
+`gtk-3.0/gtk.css` (linked to `~/.config/gtk-3.0/gtk.css`) overrides that ring
+for every GTK3 app and for Cinnamon-drawn frames: 2px **blue** (`#5b8cff`) while
+the window is focused, **grey** (`#7a7a7a`) when it isn't. Maximized, tiled,
+fullscreen windows and popups keep no border. Change the two hex values to
+recolor; delete the file to undo.
 
-It also shows up in Cinnamon Settings -> Themes -> Window borders. Change the
-colors in `metacity-1/metacity-theme-3.xml` (`C_wm_border`,
-`C_wm_border_unfocused`). (An earlier version drew the border inside wezterm
-only; that was dropped in favor of this.) Good test windows: `xcalc`,
-`xclock`, `xterm`, Geany, Nemo, gnome-terminal - apps whose frame Cinnamon
-draws; GTK client-side-decorated apps (GNOME Calculator) don't use it.
+Cinnamon-drawn frames pick it up after a Cinnamon restart (Alt+F2, `r` - or
+`gdbus call --session --dest org.Cinnamon --object-path /org/Cinnamon --method
+org.Cinnamon.RestartCinnamon true`; windows stay open). Already-running GTK
+apps pick it up the next time they start. Good test windows: Geany, Nemo,
+gnome-terminal, `xcalc`/`xterm`, and the wezterm windows.
 
 ## Install on a fresh machine
 
